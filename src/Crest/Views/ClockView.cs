@@ -235,7 +235,7 @@ namespace Crest.Views
                 bool h24c = CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains("H");
                 _digital.Text = n.ToString(h24c ? "HH:mm:ss" : "h:mm:ss", CultureInfo.CurrentCulture);
                 var off = TimeZoneInfo.Local.GetUtcOffset(n);
-                _digitalSub.Text = n.ToString("dddd, d MMMM yyyy", CultureInfo.CurrentCulture) + $"  ·  UTC{(off < TimeSpan.Zero ? "−" : "+")}{off.Duration():hh\:mm}";
+                _digitalSub.Text = n.ToString("dddd, d MMMM yyyy", CultureInfo.CurrentCulture) + $"  ·  UTC{(off < TimeSpan.Zero ? "−" : "+")}{off.Duration().Hours:00}:{off.Duration().Minutes:00}";
                 _analog.InvalidateVisual();
             }
             var local = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, TimeZoneInfo.Local);
