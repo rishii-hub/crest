@@ -56,6 +56,16 @@ It is a native WPF app on .NET 8. No Electron, no browser engine in the backgrou
 - **Tray icon** with open, settings, hide, autostart and quit.
 - **Shortcuts:** `Ctrl+Alt+N` open/close · `Ctrl+Alt+V` clipboard · `Ctrl+Alt+P` start/pause Pomodoro · `Esc` close.
 
+## Screenshots
+<table>
+<tr><td><img src="docs/screenshots/tab-timers.png" alt="Timers"/></td><td><img src="docs/screenshots/tab-weather.png" alt="Weather"/></td></tr>
+<tr><td><img src="docs/screenshots/tab-shelf.png" alt="Shelf"/></td><td><img src="docs/screenshots/tab-clipboard.png" alt="Clipboard"/></td></tr>
+<tr><td><img src="docs/screenshots/tab-system.png" alt="System"/></td><td><img src="docs/screenshots/tab-clock.png" alt="Clock"/></td></tr>
+<tr><td><img src="docs/screenshots/tab-notes.png" alt="Notes"/></td><td><img src="docs/screenshots/tab-settings.png" alt="Settings"/></td></tr>
+</table>
+
+Live activities: <img src="docs/screenshots/live-charging.png" height="70"/> <img src="docs/screenshots/live-bluetooth.png" height="70"/> <img src="docs/screenshots/live-timer.png" height="70"/> <img src="docs/screenshots/live-volume.png" height="70"/>
+
 ## Install
 1. Download **`Crest-win-x64.exe`** from [Releases](https://github.com/rishii-hub/crest/releases/latest). It's one self-contained file with no installer and no .NET needed.
    (`Crest-win-x64-small.exe` is the same app, but it needs the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0).)

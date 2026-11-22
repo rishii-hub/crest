@@ -122,28 +122,36 @@
         </Button>
       </UniformGrid>
 
-      <Grid Grid.Row="3" Margin="6,6,6,0">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="26"/>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="34"/>
-        </Grid.ColumnDefinitions>
-        <TextBlock x:Name="VolGlyph" Style="{StaticResource Icon}" Text="&#xE995;" FontSize="14" HorizontalAlignment="Left"/>
-        <Slider x:Name="VolSlider" Grid.Column="1" Style="{StaticResource Thin}" Minimum="0" Maximum="100"/>
-        <TextBlock x:Name="VolText" Grid.Column="2" Style="{StaticResource Num}" FontSize="11.5" Foreground="{StaticResource Text2Brush}"
-                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
-      </Grid>
-      <Grid x:Name="BriRow" Grid.Row="4" Margin="6,6,6,0">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="26"/>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="34"/>
-        </Grid.ColumnDefinitions>
-        <TextBlock Style="{StaticResource Icon}" Text="&#xE706;" FontSize="14" HorizontalAlignment="Left"/>
-        <Slider x:Name="BriSlider" Grid.Column="1" Style="{StaticResource Thin}" Minimum="0" Maximum="100"/>
-        <TextBlock x:Name="BriText" Grid.Column="2" Style="{StaticResource Num}" FontSize="11.5" Foreground="{StaticResource Text2Brush}"
-                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
-      </Grid>
+      <Border Grid.Row="3" Background="{StaticResource CardBrush}" CornerRadius="16" Padding="14,10" Margin="3,0,3,0">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="26"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="34"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="VolGlyph" Style="{StaticResource Icon}" Text="&#xE995;" FontSize="14" HorizontalAlignment="Left"/>
+            <Slider x:Name="VolSlider" Grid.Column="1" Style="{StaticResource Thin}" Minimum="0" Maximum="100"/>
+            <TextBlock x:Name="VolText" Grid.Column="2" Style="{StaticResource Num}" FontSize="11.5" Foreground="{StaticResource Text2Brush}"
+                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+          </Grid>
+          <Grid x:Name="BriRow" Grid.Row="1" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="26"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="34"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Style="{StaticResource Icon}" Text="&#xE706;" FontSize="14" HorizontalAlignment="Left"/>
+            <Slider x:Name="BriSlider" Grid.Column="1" Style="{StaticResource Thin}" Minimum="0" Maximum="100"/>
+            <TextBlock x:Name="BriText" Grid.Column="2" Style="{StaticResource Num}" FontSize="11.5" Foreground="{StaticResource Text2Brush}"
+                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+          </Grid>
+        </Grid>
+      </Border>
     </Grid>
   </Grid>
 </UserControl>
