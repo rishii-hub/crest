@@ -64,7 +64,7 @@ namespace Crest.Services
                         {
                             await Task.Delay(1500); // drivers report battery a moment after connecting
                             var pct = await BluetoothBattery.ForContainerAsync(cont);
-                            _ui.BeginInvoke(new Action(() => Changed?.Invoke(name, true, pct)));
+                            _ = _ui.BeginInvoke(new Action(() => Changed?.Invoke(name, true, pct)));
                         });
                     }
                     else Changed?.Invoke(d.Name, c, null);
