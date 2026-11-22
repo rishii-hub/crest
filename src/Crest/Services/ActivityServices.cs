@@ -255,21 +255,21 @@ namespace Crest.Services
             if (Recording)
                 yield return new LiveActivity
                 {
-                    Id = "memo", Priority = 90, Glyph = "●", Emoji = false, GlyphBrush = Ui.Res("RedBrush"), Pulse = true, Title = "Recording",
+                    Id = "memo", Priority = 90, Glyph = Glyphs.Record, GlyphBrush = Ui.Res("RedBrush"), Pulse = true, Title = "Recording",
                     Value = Ui.Clock(DateTime.Now - _start), ValueBrush = Ui.Res("RedBrush"), Tab = "Tools", Signature = _start.Ticks.ToString(),
                     Actions = { ("stop", "Stop") }, OnAction = a => Stop()
                 };
             if (GameBarRecording)
                 yield return new LiveActivity
                 {
-                    Id = "screenrec", Priority = 88, Glyph = "●", GlyphBrush = Ui.Res("RedBrush"), Pulse = true, Title = "Screen recording",
+                    Id = "screenrec", Priority = 88, Glyph = Glyphs.Record, GlyphBrush = Ui.Res("RedBrush"), Pulse = true, Title = "Screen recording",
                     Value = Ui.Clock(DateTime.Now - _screenStart), ValueBrush = Ui.Res("RedBrush"), Tab = "Tools", Signature = _screenStart.Ticks.ToString(),
                     Actions = { ("stop", "Stop") }, OnAction = a => ToggleGameBar()
                 };
             else if (CaptureApps.Length > 0)
                 yield return new LiveActivity
                 {
-                    Id = "capture", Priority = 85, Glyph = "●", GlyphBrush = Ui.Res("RedBrush"), Title = "Screen capture", Value = CaptureApps,
+                    Id = "capture", Priority = 85, Glyph = Glyphs.Record, GlyphBrush = Ui.Res("RedBrush"), Title = "Screen capture", Value = CaptureApps,
                     ValueBrush = Ui.Res("Text2Brush"), Tab = "Tools", Signature = CaptureApps
                 };
         }
