@@ -236,6 +236,8 @@ namespace Crest
                     {
                         SelectTab("Settings");
                         await Task.Delay(1200); Capture("theme-" + theme.ToLowerInvariant() + "-settings");
+                        if (_views.TryGetValue("Settings", out var sv2) && sv2 is Views.SettingsView settings) settings.ScrollTo(260);
+                        await Task.Delay(500); Capture("theme-" + theme.ToLowerInvariant() + "-settings-2");
                         SelectTab("Timers");
                         await Task.Delay(1000); Capture("theme-" + theme.ToLowerInvariant() + "-timers");
                     }
@@ -270,7 +272,7 @@ namespace Crest
                     enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
                 }
                 using (var fs = File.Create(gif)) enc.Save(fs);
-                SettingsStore.Update(x => { ThemeService.Choose("Custom"); x.CustomPanel = "#FCE7F3"; x.Backdrop = "Media"; x.BgPath = gif; x.BgDim = 20; });
+                SettingsStore.Update(x => { ThemeService.Choose("Custom"); x.CustomPanel = "#1A0B2E"; x.Backdrop = "Media"; x.BgPath = gif; x.BgDim = 25; });
                 Expand("Clock"); PinButton.IsChecked = true;
                 await Task.Delay(1800); Capture("theme-gif");
                 await Task.Delay(350); Capture("theme-gif-2");

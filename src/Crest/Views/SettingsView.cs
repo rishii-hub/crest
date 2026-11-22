@@ -72,6 +72,7 @@ namespace Crest.Views
         }
 
         public void OnActivated() { if (_startup != null) _startup.IsChecked = Startup.Enabled; }
+        public void ScrollTo(double y) => (Content as ScrollViewer)?.ScrollToVerticalOffset(y);
         public void OnDeactivated() { }
 
         void Build()
@@ -237,7 +238,7 @@ namespace Crest.Views
             if (S.Theme == "Custom") PanelColours(t);
             Accents(t);
             Seg(t, "Background", new[] { ("None", "None"), ("Aurora", "Aurora"), ("Sunset", "Sunset"), ("Ocean", "Ocean"), ("Media", "Your own") }, S.Backdrop,
-                v => S.Backdrop = v, "Behind the open notch. Cards turn to glass.");
+                v => S.Backdrop = v, "Behind the open notch. Cards turn to glass.", stacked: true);
             if (S.Backdrop == "Media") MediaRows(t);
             Seg(t, "Font", new[] { ("Inter", "Inter"), ("Segoe", "Segoe UI"), ("Bahnschrift", "Bahnschrift") },
                 S.Font is "Inter" or "Segoe" or "Bahnschrift" ? S.Font : "", v => S.Font = v);
@@ -439,7 +440,7 @@ namespace Crest.Views
             return sw;
         }
 
-        static void Seg(StackPanel host, string title, (string Value, string Label)[] options, string current, Action<string> set, string? sub = null)
+        static void Seg(StackPanel host, string title, (string Value, string Label)[] options, string current, Action<string> set, string? sub = null, bool stacked = false)
         {
             var row = new DockPanel { Margin = new Thickness(0, 6, 0, 6) };
             var group = "seg-" + title;
@@ -452,6 +453,18 @@ namespace Crest.Views
                 panel.Children.Add(rb);
             }
             var seg = new Border { Background = Ui.Res("Card2Brush"), CornerRadius = new CornerRadius(10), Padding = new Thickness(2), Child = panel, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            if (stacked)
+            {
+                // wide control: label on top, options underneath
+                var labels = Labels(title, sub);
+                DockPanel.SetDock(labels, Dock.Top);
+                row.Children.Add(labels);
+                seg.Margin = new Thickness(0, 6, 0, 0);
+                seg.HorizontalAlignment = HorizontalAlignment.Left;
+                row.Children.Add(seg);
+                host.Children.Add(row);
+                return;
+            }
             DockPanel.SetDock(seg, Dock.Right);
             row.Children.Add(seg);
             row.Children.Add(Labels(title, sub));

@@ -381,8 +381,8 @@ namespace Crest
             HoverZone.Height = Math.Max(10, TopGap + 8);
 
             ActivityRow.Height = RowH;
-            Eyes.Width = Math.Round(52 * K);
-            Eyes.Height = Math.Round(15 * K);
+            Eyes.Width = Math.Round(56 * K);
+            Eyes.Height = Math.Round(17 * K);
             double pad = Shoulder + Math.Round(13 * K);
             CollapsedLayer.Margin = new Thickness(pad, 0, pad, 0);
             LeftText.FontSize = Math.Round(12.5 * K, 1);
