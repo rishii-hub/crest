@@ -180,7 +180,8 @@ namespace Crest.Services
                     return new SpotItem { Kind = "unit", Name = $"{Calc.Format(v)} {from.ToUpperInvariant()} → {to.ToUpperInvariant()}", Sub = "Open Units for live rates", Target = "units", Score = 4900, Glyph = Glyphs.Calculator };
                 return null;
             }
-            return new SpotItem { Kind = "math", Name = $"= {Calc.Format(r.Value)} {to}", Sub = $"{Calc.Format(v)} {from} → {to} · Enter to copy", Target = Calc.Format(r.Value), Score = 4900, Glyph = Glyphs.Calculator };
+            var shown = Calc.Format(Math.Round(r.Value, Math.Abs(r.Value) >= 1 ? 4 : 8)); // 4 decimals is plenty for a conversion
+            return new SpotItem { Kind = "math", Name = $"= {shown} {to}", Sub = $"{Calc.Format(v)} {from} → {to} · Enter to copy", Target = shown, Score = 4900, Glyph = Glyphs.Calculator };
         }
 
         static string Norm(string u) => u.Trim();

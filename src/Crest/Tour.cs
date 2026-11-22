@@ -137,9 +137,11 @@ namespace Crest
                 else Log.Write("tour: no microphone, memo skipped");
 
                 // Screen capture indicator (as reported by Windows' capability access store)
+                s.PrivacyDots = false; // pause the real poll so it doesn't clear the demo value
                 RecorderService.CaptureApps = "OBS Studio";
                 ActivityHub.Notify();
-                await Task.Delay(500); Capture("live-screen-capture");
+                await Task.Delay(900); Capture("live-screen-capture");
+                s.PrivacyDots = true;
                 RecorderService.CaptureApps = "";
                 ActivityHub.Notify();
                 await Task.Delay(700);
