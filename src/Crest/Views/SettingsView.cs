@@ -118,7 +118,7 @@ namespace Crest.Views
             Toggle(live, "Clipboard copied", "Short confirmation when you copy something", S.CopiedHud, v => S.CopiedHud = v);
             Toggle(live, "Hide copied text", "Show “Text” or “Image” instead of what you copied", S.CopiedHideContent, v => S.CopiedHideContent = v);
             Toggle(live, "Focus Assist / Do Not Disturb", "Show a pill when Windows notifications go quiet", S.FocusAssistHud, v => S.FocusAssistHud = v);
-            Toggle(live, "Mirror notifications & calls", "Needs the packaged (MSIX) build · " + NotificationMirror.Status, S.MirrorNotifications, v => { S.MirrorNotifications = v; if (v) NotificationMirror.Init(Dispatcher); else NotificationMirror.Stop(); });
+            Toggle(live, "Mirror notifications & calls", NotificationMirror.HasIdentity ? "Windows notifications and calls as pills · " + NotificationMirror.Status : "Needs the packaged (MSIX) build of Crest", S.MirrorNotifications, v => { S.MirrorNotifications = v; if (v) NotificationMirror.Init(Dispatcher); else NotificationMirror.Stop(); });
             Toggle(live, "Sounds", "Chime when timers finish", S.Sounds, v => S.Sounds = v);
 
             // ---- Clipboard ----

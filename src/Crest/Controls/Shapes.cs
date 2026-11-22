@@ -135,6 +135,8 @@ namespace Crest.Controls
         public Brush RingBrush { get => (Brush)GetValue(RingBrushProperty); set => SetValue(RingBrushProperty, value); }
         public Brush TrackBrush { get => (Brush)GetValue(TrackBrushProperty); set => SetValue(TrackBrushProperty, value); }
 
+        public RingProgress() => SetResourceReference(TrackBrushProperty, "TrackBrush"); // follows the theme
+
         protected override void OnRender(DrawingContext dc)
         {
             double size = Math.Min(ActualWidth, ActualHeight);

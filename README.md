@@ -66,7 +66,16 @@ A header shows the current tab and a subtitle. A bottom dock holds your modules,
 | **Screen Time** | Per-app foreground time today, last 7 days, optional daily limit with a notch alert. Only app names are recorded, never window titles or content. |
 | **AI Coding** | Today's Claude Code and Codex token usage, messages, tool calls, sessions, active hours, per-model and 7-day breakdown. Read from the logs those tools already keep on your PC. No prices are guessed. |
 | **Message** | Flash your own text on the notch (type-on, scroll or pulse; your colour; 3–30 s). |
-| **Settings** | Notch or Island style; visibility Always / Smart (tucks away over maximized apps) / Minimal / Hidden; time & battery in the notch corners; outline; shadow; accent and music colours; module on/off; backup export & import. |
+| **Settings** | Theme, background, font and eyes; Notch or Island style; visibility Always / Smart (tucks away over maximized apps) / Minimal / Hidden; time & battery in the notch corners; outline; shadow; accent and music colours; module on/off; backup export & import. |
+
+### Themes, backgrounds and eyes
+- **Eight themes:** Dark (pure black), Light, Graphite, Midnight, Forest, plus **Vivid** and **Sunset**, which put a slowly moving aurora behind frosted-glass cards. **Custom** takes any panel colour (light colours switch the text to dark automatically) and any accent.
+- **Your own background:** a picture, an **animated GIF** or a **video** (muted, looping) behind the open notch, with dim and blur sliders. It only plays while the notch is open, so it costs nothing at rest.
+- **Inter** is the default font (bundled; Segoe UI, Bahnschrift or any installed font are one click away).
+- **Eyes:** the resting notch can watch your cursor. Five styles: Pill, Bubble, Honey (pupils widen as you come close), Jade (cat slits that open round) and Robot (glowing LEDs in your accent colour). They blink, glance around when you're still, and doze off when you're away.
+
+<p><img src="docs/screenshots/theme-light.png" width="49%"/> <img src="docs/screenshots/theme-vivid.png" width="49%"/></p>
+<p><img src="docs/screenshots/eyes-pill.png" width="24%"/> <img src="docs/screenshots/eyes-bubble.png" width="24%"/> <img src="docs/screenshots/eyes-honey.png" width="24%"/> <img src="docs/screenshots/eyes-jade.png" width="24%"/></p>
 
 ### Behaviour details
 - **Stays out of your way.** It hides automatically for full-screen games, videos and presentations. **Smart** visibility shrinks it to a thin line whenever the app under it is maximized, so browser tabs stay clickable.
@@ -175,4 +184,4 @@ Issues and PRs are welcome. Keep it native and light: no new background processe
 Inspired by Apple's Dynamic Island, macOS notch utilities like NotchNook and Boring Notch, and the Windows notch apps that came before. Crest is an independent project and isn't affiliated with Apple or Microsoft.
 
 ## License
-[MIT](LICENSE)
+[MIT](LICENSE). The bundled [Inter](https://rsms.me/inter/) font is © The Inter Project Authors, under the [SIL Open Font License 1.1](src/Crest/Assets/Fonts/Inter-LICENSE.txt).
