@@ -38,9 +38,14 @@ namespace Crest.Views
             var look = Section(_left, "Appearance");
             Seg(look, "Style", new[] { ("Notch", "Notch"), ("Island", "Island") }, S.Style, v => S.Style = v);
             Seg(look, "Size", new[] { ("Small", "Small"), ("Medium", "Medium"), ("Large", "Large") }, S.Size, v => S.Size = v);
-            Seg(look, "When idle", new[] { ("Notch", "Notch"), ("Line", "Thin line") }, S.IdleLook, v => S.IdleLook = v,
-                "Thin line keeps browser tabs under it clickable");
+            Seg(look, "Visibility", new[] { ("Always", "Always"), ("Smart", "Smart"), ("Minimal", "Minimal"), ("Hidden", "Hidden") }, S.Visibility, v => S.Visibility = v,
+                "Smart tucks into a thin line over maximized apps · Hidden shows only events");
+            Seg(look, "Resting notch", new[] { ("None", "Clean"), ("Corners", "Time & battery") }, S.RestingInfo, v => S.RestingInfo = v);
             Accents(look);
+            Toggle(look, "Outline", "Hairline around the notch", S.Outline, v => S.Outline = v);
+            Seg(look, "Shadow", new[] { ("None", "None"), ("Subtle", "Subtle"), ("Medium", "Medium"), ("Deep", "Deep") }, S.Shadow, v => S.Shadow = v, "Depth under the open notch");
+            Seg(look, "Music colour", new[] { ("Album", "Album art"), ("Accent", "Accent"), ("Rainbow", "Rainbow") }, S.EqColor, v => S.EqColor = v);
+            Toggle(look, "Tab animations", "Sliding pill and direction-aware transitions", S.TabAnimations, v => S.TabAnimations = v);
 
             // ---- Behaviour ----
             var beh = Section(_left, "Behaviour");
@@ -62,11 +67,34 @@ namespace Crest.Views
             Toggle(live, "Bluetooth devices", "Earbuds and headphones connecting", S.BluetoothAlerts, v => S.BluetoothAlerts = v);
             Toggle(live, "Caps Lock", null, S.CapsLockHud, v => S.CapsLockHud = v);
             Toggle(live, "Privacy indicators", "Orange dot = microphone, green = camera", S.PrivacyDots, v => S.PrivacyDots = v);
+            Toggle(live, "Clipboard copied", "Short confirmation when you copy something", S.CopiedHud, v => S.CopiedHud = v);
+            Toggle(live, "Hide copied text", "Show “Text” or “Image” instead of what you copied", S.CopiedHideContent, v => S.CopiedHideContent = v);
             Toggle(live, "Sounds", "Chime when timers finish", S.Sounds, v => S.Sounds = v);
 
             // ---- Clipboard ----
             var clip = Section(_right, "Clipboard");
             Toggle(clip, "Clipboard history", "Skips anything password managers mark private", S.ClipboardHistory, v => S.ClipboardHistory = v);
+
+            // ---- Modules ----
+            var mods = Section(_left, "Modules in the dock");
+            foreach (var (key, glyph, title, sub) in NotchWindow.AllTabs)
+            {
+                if (key == "Home" || key == "Settings") continue;
+                var k = key;
+                Toggle(mods, title, string.IsNullOrEmpty(sub) ? null : sub, !S.HiddenTabs.Contains(key), on =>
+                {
+                    if (on) S.HiddenTabs.Remove(k);
+                    else if (!S.HiddenTabs.Contains(k)) S.HiddenTabs.Add(k);
+                });
+            }
+
+            // ---- Backup ----
+            var backup = Section(_right, "Backup");
+            Info(backup, "Everything stays on this PC", "%AppData%\\Crest");
+            var brow = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            brow.Children.Add(LinkButton("Export backup…", ExportBackup));
+            brow.Children.Add(LinkButton("Import backup…", ImportBackup));
+            backup.Children.Add(brow);
 
             // ---- Shortcuts & about ----
             var about = Section(_left, "Shortcuts");
@@ -84,6 +112,56 @@ namespace Crest.Views
             links.Children.Add(LinkButton("Data folder", () => { System.IO.Directory.CreateDirectory(Storage.Dir); Ui.Open(Storage.Dir); }));
             links.Children.Add(LinkButton("Quit", () => Application.Current.Shutdown()));
             info.Children.Add(links);
+        }
+
+        static void ExportBackup()
+        {
+            try
+            {
+                Debouncer.FlushAll();
+                SettingsStore.SaveNow();
+                var dlg = new Microsoft.Win32.SaveFileDialog { FileName = $"Crest-backup-{DateTime.Now:yyyy-MM-dd}.zip", Filter = "Zip archive|*.zip", InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) };
+                if (NotchWindow.Instance != null) NotchWindow.Instance.DragOut = true;
+                bool ok = dlg.ShowDialog() == true;
+                if (NotchWindow.Instance != null) NotchWindow.Instance.DragOut = false;
+                if (!ok) return;
+                if (System.IO.File.Exists(dlg.FileName)) System.IO.File.Delete(dlg.FileName);
+                using (var zip = System.IO.Compression.ZipFile.Open(dlg.FileName, System.IO.Compression.ZipArchiveMode.Create))
+                    foreach (var f in System.IO.Directory.GetFiles(Storage.Dir, "*", System.IO.SearchOption.AllDirectories))
+                    {
+                        if (f.EndsWith(".tmp") || f.EndsWith("crest.log")) continue;
+                        System.IO.Compression.ZipFileExtensions.CreateEntryFromFile(zip, f, System.IO.Path.GetRelativePath(Storage.Dir, f));
+                    }
+                NotchWindow.Instance?.ShowBanner(new Toast { Glyph = Glyphs.Check, GlyphBrush = Ui.Res("GreenBrush"), Title = "Backup saved" });
+            }
+            catch (Exception ex) { Log.Error("export", ex); NotchWindow.Instance?.ShowBanner(new Toast { Glyph = Glyphs.Close, Title = "Backup failed", Value = ex.Message }); }
+        }
+
+        static void ImportBackup()
+        {
+            try
+            {
+                var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Crest backup|*.zip" };
+                if (NotchWindow.Instance != null) NotchWindow.Instance.DragOut = true;
+                bool ok = dlg.ShowDialog() == true;
+                if (NotchWindow.Instance != null) NotchWindow.Instance.DragOut = false;
+                if (!ok) return;
+                using (var zip = System.IO.Compression.ZipFile.OpenRead(dlg.FileName))
+                {
+                    if (zip.GetEntry("settings.json") == null) { NotchWindow.Instance?.ShowBanner(new Toast { Glyph = Glyphs.Close, Title = "Not a Crest backup" }); return; }
+                    foreach (var entry in zip.Entries)
+                    {
+                        var dest = System.IO.Path.GetFullPath(System.IO.Path.Combine(Storage.Dir, entry.FullName));
+                        if (!dest.StartsWith(System.IO.Path.GetFullPath(Storage.Dir), StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(entry.Name)) continue;
+                        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(dest)!);
+                        System.IO.Compression.ZipFileExtensions.ExtractToFile(entry, dest, true);
+                    }
+                }
+                // Restart so every store reloads cleanly.
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!, "--restart") { UseShellExecute = true });
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex) { Log.Error("import", ex); NotchWindow.Instance?.ShowBanner(new Toast { Glyph = Glyphs.Close, Title = "Import failed", Value = ex.Message }); }
         }
 
         // ---------- builders ----------

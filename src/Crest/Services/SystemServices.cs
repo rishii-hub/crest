@@ -227,6 +227,8 @@ namespace Crest.Services
         public event Action? Changed;
         public event Action<bool>? AcChanged;
         public event Action<int>? Low;
+        public event Action? Full;
+        bool _fullNotified;
 
         public void Init(Dispatcher ui)
         {
@@ -250,6 +252,8 @@ namespace Crest.Services
             if (changed) Changed?.Invoke();
             if (acChanged && HasBattery) AcChanged?.Invoke(onAc);
             if (onAc) _lowNotified = 101;
+            if (onAc && HasBattery && pct >= 100 && !_fullNotified && !_first) { _fullNotified = true; Full?.Invoke(); }
+            if (!onAc || pct < 97) _fullNotified = false;
             else if (HasBattery)
             {
                 foreach (var threshold in new[] { 20, 10, 5 })

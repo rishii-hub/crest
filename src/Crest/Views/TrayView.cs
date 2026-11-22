@@ -35,8 +35,9 @@ namespace Crest.Views
 
             var root = new Grid();
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            if (!shelf) root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             // header
             var header = new DockPanel { Margin = new Thickness(4, 0, 0, 8), LastChildFill = true };
@@ -50,11 +51,17 @@ namespace Crest.Views
             };
             _clear = new Button { Style = Ui.StyleRes("Pill"), Content = "Clear" };
             _clear.Click += (s, e) => _store.Clear();
+            var paste = new Button { Style = Ui.StyleRes("Pill"), Content = "Paste", Margin = new Thickness(0, 0, 6, 0), ToolTip = "Add what's on the clipboard" };
+            paste.Click += (s, e) => PasteFromClipboard();
+            var choose = new Button { Style = Ui.StyleRes("Pill"), Content = shelf ? "Choose files" : "Add app", Margin = new Thickness(0, 0, 6, 0) };
+            choose.Click += (s, e) => ChooseFiles();
+            right.Children.Add(paste);
+            right.Children.Add(choose);
             if (shelf) right.Children.Add(_dragAll);
             right.Children.Add(_clear);
             header.Children.Add(right);
             var titles = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            titles.Children.Add(new TextBlock { Text = shelf ? "Shelf" : "Quick Launch", Style = Ui.StyleRes("H1") });
+            titles.Children.Add(new TextBlock { Text = shelf ? "Shelf" : "Pinned", Style = Ui.StyleRes("H1") });
             _count.Style = Ui.StyleRes("Caption");
             titles.Children.Add(_count);
             header.Children.Add(titles);
@@ -82,7 +89,8 @@ namespace Crest.Views
                 CornerRadius = new CornerRadius(18), Background = Ui.Res("CardBrush"), BorderThickness = new Thickness(1.5),
                 BorderBrush = Brushes.Transparent, Padding = new Thickness(10), Child = layer
             };
-            Grid.SetRow(_drop, 1);
+            Grid.SetRow(_drop, 2);
+            if (!shelf) root.Children.Add(BuildSearch());
             root.Children.Add(_drop);
             hint.Visibility = Visibility.Visible;
             _store.Items.CollectionChanged += (s, e) => { Rebuild(); hint.Visibility = _store.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed; };
@@ -99,7 +107,7 @@ namespace Crest.Views
                     _store.Add(TrayItem.FromText(t));
                     _url.Text = "";
                 };
-                Grid.SetRow(_url, 2);
+                Grid.SetRow(_url, 3);
                 root.Children.Add(_url);
             }
 
@@ -109,6 +117,86 @@ namespace Crest.Views
             DragLeave += (s, e) => SetDropHighlight(false);
             Drop += OnDrop;
             Rebuild();
+        }
+
+        static readonly (string Name, string Url)[] Engines =
+        {
+            ("Google", "https://www.google.com/search?q="), ("YouTube", "https://www.youtube.com/results?search_query="),
+            ("GitHub", "https://github.com/search?type=repositories&q="), ("Stack Overflow", "https://stackoverflow.com/search?q="),
+            ("ChatGPT", "https://chatgpt.com/?q="), ("Claude", "https://claude.ai/new?q="), ("Perplexity", "https://www.perplexity.ai/search?q="),
+            ("Wikipedia", "https://en.wikipedia.org/w/index.php?search=")
+        };
+
+        FrameworkElement BuildSearch()
+        {
+            int engine = 0;
+            var box = new TextBox { Style = Ui.StyleRes("Field"), Tag = "Search the web — Enter to search", Background = Brushes.Transparent, Padding = new Thickness(4, 6, 4, 6), FontSize = 14 };
+            var go = new Button { Style = Ui.StyleRes("Pill"), Content = "Search ↗", Foreground = Brushes.Black, Padding = new Thickness(14, 6, 14, 6) };
+            go.SetResourceReference(BackgroundProperty, "AccentBrush");
+            void search()
+            {
+                var q = box.Text.Trim();
+                if (q.Length == 0) return;
+                Ui.Open(Engines[engine].Url + Uri.EscapeDataString(q));
+                box.Text = "";
+                NotchWindow.Instance?.Collapse();
+            }
+            box.KeyDown += (s, e) => { if (e.Key == Key.Enter) search(); };
+            go.Click += (s, e) => search();
+            var top = new DockPanel();
+            DockPanel.SetDock(go, Dock.Right);
+            top.Children.Add(go);
+            top.Children.Add(box);
+            var chips = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            for (int i = 0; i < Engines.Length; i++)
+            {
+                var rb = new RadioButton { Style = Ui.StyleRes("Seg"), Content = Engines[i].Name, GroupName = "engines", IsChecked = i == 0, Padding = new Thickness(9, 3, 9, 3), FontSize = 11.5 };
+                int idx = i;
+                rb.Checked += (s, e) => engine = idx;
+                chips.Children.Add(rb);
+            }
+            var stack = new StackPanel();
+            stack.Children.Add(top);
+            stack.Children.Add(chips);
+            var card = new Border { Style = Ui.StyleRes("Card"), Padding = new Thickness(12, 8, 12, 8), Margin = new Thickness(0, 0, 0, 8), Child = stack };
+            Grid.SetRow(card, 1);
+            return card;
+        }
+
+        void PasteFromClipboard()
+        {
+            int added = 0;
+            try
+            {
+                if (Clipboard.ContainsFileDropList())
+                    foreach (var f in Clipboard.GetFileDropList()) { if (f != null && _store.Add(TrayItem.FromPath(f))) added++; }
+                else if (Clipboard.ContainsText() && !string.IsNullOrWhiteSpace(Clipboard.GetText()))
+                    { if (_store.Add(TrayItem.FromText(Clipboard.GetText()))) added++; }
+            }
+            catch (Exception ex) { Log.Error("paste", ex); }
+            NotchWindow.Instance?.ShowBanner(added > 0
+                ? new Toast { Glyph = Glyphs.Check, GlyphBrush = Ui.Res("GreenBrush"), Title = added == 1 ? "Added 1 item" : $"Added {added} items" }
+                : new Toast { Glyph = Glyphs.Paste, Title = "Nothing to paste", Value = "copy files or a link first" });
+        }
+
+        void ChooseFiles()
+        {
+            var notch = NotchWindow.Instance;
+            if (notch != null) notch.DragOut = true; // keep the notch open while the dialog is up
+            try
+            {
+                var dlg = new Microsoft.Win32.OpenFileDialog
+                {
+                    Multiselect = true,
+                    Title = _shelf ? "Add files to the Shelf" : "Add apps or files to Links",
+                    Filter = _shelf ? "All files|*.*" : "Apps and shortcuts|*.exe;*.lnk;*.url;*.bat;*.cmd|All files|*.*",
+                    InitialDirectory = _shelf ? Environment.GetFolderPath(Environment.SpecialFolder.Desktop) : Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu)
+                };
+                if (dlg.ShowDialog() == true)
+                    foreach (var f in dlg.FileNames) _store.Add(TrayItem.FromPath(f));
+            }
+            catch (Exception ex) { Log.Error("choose", ex); }
+            finally { if (notch != null) notch.DragOut = false; }
         }
 
         public void OnActivated()

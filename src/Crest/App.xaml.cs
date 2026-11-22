@@ -21,7 +21,11 @@ namespace Crest
         {
             base.OnStartup(e);
 
-            _mutex = new Mutex(true, MutexName, out bool first);
+            bool restart = Array.IndexOf(e.Args, "--restart") >= 0;
+            _mutex = new Mutex(false, MutexName);
+            bool first;
+            try { first = _mutex.WaitOne(restart ? 8000 : 0); }
+            catch (AbandonedMutexException) { first = true; }
             if (!first)
             {
                 // Already running: ask the existing instance to open, then quit.
@@ -73,7 +77,7 @@ namespace Crest
                 SettingsStore.SaveNow();
                 KeepAwake.Set(false);
                 _tray?.Dispose();
-                _mutex?.ReleaseMutex();
+                try { _mutex?.ReleaseMutex(); } catch { }
             }
             catch { }
             base.OnExit(e);

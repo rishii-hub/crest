@@ -67,6 +67,9 @@ namespace Crest.Services
         static readonly string ImgDir = Path.Combine(Storage.Dir, "clips");
 
         public ObservableCollection<ClipItem> Items { get; } = new ObservableCollection<ClipItem>();
+
+        /// <summary>Raised when the user copies something outside Crest.</summary>
+        public event Action<ClipItem>? Copied;
         IntPtr _hwnd;
         bool _listening;
         DateTime _ignoreUntil;
@@ -132,7 +135,7 @@ namespace Crest.Services
                         item = new ClipItem { Kind = "image", Image = copy };
                     }
                 }
-                if (item != null) Add(item);
+                if (item != null) { Add(item); Copied?.Invoke(item); }
             }
             catch (Exception ex) { Log.Error("clipboard read", ex); }
         }

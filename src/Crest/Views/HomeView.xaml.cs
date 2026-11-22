@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -55,6 +56,11 @@ namespace Crest.Views
             };
             LockTile.Click += (s, e) => Win32.LockWorkStation();
             WeatherMini.Click += (s, e) => NotchWindow.Instance?.SelectTab("Weather");
+            SysWidget.Click += (s, e) => NotchWindow.Instance?.SelectTab("System");
+            ScreenWidget.Click += (s, e) => NotchWindow.Instance?.SelectTab("ScreenTime");
+            FocusWidget.Click += (s, e) => { TimerService.Instance.PomoToggle(); Widgets(); };
+            FocusWidget.MouseRightButtonUp += (s, e) => NotchWindow.Instance?.SelectTab("Timers");
+            TimerService.Instance.Tick += () => { if (IsVisible) Widgets(); };
 
             MediaService.Instance.Changed += () => { if (IsVisible) RefreshMedia(); };
             AudioService.Instance.VolumeChanged += (v, m) => { if (IsVisible) SyncAudio(); };
@@ -71,6 +77,8 @@ namespace Crest.Views
             AwakeTile.IsChecked = KeepAwake.On;
             MicTile.IsEnabled = AudioService.Instance.HasMic;
             MicTile.IsChecked = AudioService.Instance.MicMuted;
+            Widgets();
+            SampleSystem();
             Tick();
             _timer.Start();
             _ = WeatherService.Instance.RefreshIfStaleAsync();
@@ -78,8 +86,42 @@ namespace Crest.Views
 
         public void OnDeactivated() => _timer.Stop();
 
+        long _idle, _kernel, _user;
+        int _widgetTick;
+
+        void Widgets()
+        {
+            var t = TimerService.Instance;
+            FocusTime.Text = Ui.ClockCeil(t.PomoLeft);
+            FocusLabel.Text = t.PomoRunning ? t.PhaseName(t.Phase) : t.PomoLeft < t.PhaseLength(t.Phase) ? "Paused" : t.PhaseName(t.Phase);
+            FocusGlyph.Text = t.PomoRunning ? Glyphs.Pause : Glyphs.Play;
+        }
+
+        void SampleSystem()
+        {
+            if (Win32.GetSystemTimes(out var idle, out var kernel, out var user))
+            {
+                long di = idle - _idle, total = (kernel - _kernel) + (user - _user);
+                if (_kernel != 0 && total > 0)
+                {
+                    double cpu = Math.Clamp(1 - di / (double)total, 0, 1);
+                    CpuRing.Progress = cpu;
+                    CpuText.Text = $"{cpu * 100:0}%";
+                }
+                _idle = idle; _kernel = kernel; _user = user;
+            }
+            var m = new Win32.MEMORYSTATUSEX { dwLength = (uint)System.Runtime.InteropServices.Marshal.SizeOf<Win32.MEMORYSTATUSEX>() };
+            if (Win32.GlobalMemoryStatusEx(ref m)) { RamRing.Progress = m.dwMemoryLoad / 100.0; RamText.Text = $"{m.dwMemoryLoad}%"; }
+            var st = ScreenTimeService.Instance;
+            var day = DateTime.Now.ToString("yyyy-MM-dd");
+            ScreenTotal.Text = ScreenTimeService.Format(st.TotalSeconds(day));
+            var top = st.Apps(day).FirstOrDefault();
+            ScreenTop.Text = top.Exe != null ? $"{st.FriendlyName(top.Exe)} · {ScreenTimeService.Format(top.Seconds)}" : "";
+        }
+
         void Tick()
         {
+            if (_widgetTick++ % 3 == 0) SampleSystem();
             var now = DateTime.Now;
             ClockText.Text = now.ToString(CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains("H") ? "HH:mm" : "h:mm", CultureInfo.CurrentCulture);
             DateText.Text = now.ToString("dddd, d MMMM", CultureInfo.CurrentCulture);

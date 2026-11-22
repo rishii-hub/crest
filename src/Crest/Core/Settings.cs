@@ -8,7 +8,14 @@ namespace Crest.Core
         // Appearance
         public string Style { get; set; } = "Notch";        // Notch | Island
         public string Size { get; set; } = "Medium";        // Small | Medium | Large
-        public string IdleLook { get; set; } = "Notch";     // Notch | Line
+        public string IdleLook { get; set; } = "Notch";     // legacy (Notch | Line) — migrated to Visibility
+        public string Visibility { get; set; } = "";        // Always | Smart | Minimal | Hidden
+        public string RestingInfo { get; set; } = "None";   // None | Corners (time left, battery right)
+        public bool Outline { get; set; } = false;
+        public string Shadow { get; set; } = "Medium";      // None | Subtle | Medium | Deep
+        public string EqColor { get; set; } = "Album";      // Album | Accent | Rainbow
+        public bool TabAnimations { get; set; } = true;
+        public List<string> HiddenTabs { get; set; } = new List<string> { "Message" };
         public string Accent { get; set; } = "#FF9F0A";
 
         // Behaviour
@@ -28,6 +35,19 @@ namespace Crest.Core
         public bool CapsLockHud { get; set; } = true;
         public bool PrivacyDots { get; set; } = true;
         public bool Sounds { get; set; } = true;
+        public bool CopiedHud { get; set; } = true;
+        public bool CopiedHideContent { get; set; } = true;
+
+        // Screen time
+        public int ScreenLimitMin { get; set; } = 0;
+
+        // Message banner
+        public string MsgAnim { get; set; } = "Type";       // Type | Scroll | Pulse
+        public string MsgColor { get; set; } = "#FFFFFF";
+        public int MsgSeconds { get; set; } = 5;
+
+        // Units
+        public string UnitCategory { get; set; } = "Currency";
 
         // Clipboard
         public bool ClipboardHistory { get; set; } = true;
@@ -70,7 +90,11 @@ namespace Crest.Core
         /// <summary>Raised after a user-facing setting changed (appearance/behaviour). UI thread.</summary>
         public static event Action? Changed;
 
-        public static void Load() => Current = Storage.Load(File, () => new AppSettings());
+        public static void Load()
+        {
+            Current = Storage.Load(File, () => new AppSettings());
+            if (string.IsNullOrEmpty(Current.Visibility)) Current.Visibility = Current.IdleLook == "Line" ? "Minimal" : "Always";
+        }
 
         public static void Save()
         {

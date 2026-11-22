@@ -72,6 +72,59 @@ namespace Crest.Core
         [DllImport("kernel32.dll")] public static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX status);
         [DllImport("kernel32.dll")] public static extern bool GetSystemPowerStatus(out SYSTEM_POWER_STATUS status);
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct LASTINPUTINFO { public uint cbSize; public uint dwTime; }
+
+        public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+        [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr hWnd);
+        [DllImport("user32.dll")] public static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
+        [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+        [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr parent, EnumWindowsProc callback, IntPtr lParam);
+        [DllImport("kernel32.dll", SetLastError = true)] public static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern bool QueryFullProcessImageName(IntPtr hProcess, int flags, StringBuilder name, ref int size);
+        [DllImport("kernel32.dll")] public static extern bool CloseHandle(IntPtr h);
+
+        /// <summary>Milliseconds since the last keyboard/mouse input.</summary>
+        public static uint IdleMs()
+        {
+            var li = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf<LASTINPUTINFO>() };
+            if (!GetLastInputInfo(ref li)) return 0;
+            return unchecked((uint)Environment.TickCount - li.dwTime);
+        }
+
+        public static string? ProcessPath(uint pid)
+        {
+            var h = OpenProcess(0x1000 /* QUERY_LIMITED_INFORMATION */, false, pid);
+            if (h == IntPtr.Zero) return null;
+            try
+            {
+                var sb = new StringBuilder(1024);
+                int size = sb.Capacity;
+                return QueryFullProcessImageName(h, 0, sb, ref size) ? sb.ToString() : null;
+            }
+            finally { CloseHandle(h); }
+        }
+
+        /// <summary>Executable behind a window; resolves UWP apps hosted by ApplicationFrameHost.</summary>
+        public static string? WindowProcessPath(IntPtr hWnd)
+        {
+            GetWindowThreadProcessId(hWnd, out uint pid);
+            var path = ProcessPath(pid);
+            if (path != null && path.EndsWith("ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                string? inner = null;
+                EnumChildWindows(hWnd, (child, l) =>
+                {
+                    GetWindowThreadProcessId(child, out uint cpid);
+                    if (cpid != pid) { inner = ProcessPath(cpid); return false; }
+                    return true;
+                }, IntPtr.Zero);
+                if (inner != null) path = inner;
+            }
+            return path;
+        }
+
         public static string ClassName(IntPtr hWnd)
         {
             var sb = new StringBuilder(256);

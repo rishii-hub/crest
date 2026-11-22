@@ -23,6 +23,11 @@ namespace Crest.Views
         readonly StackPanel _zoneResults = new StackPanel();
         readonly Border _addPanel;
         DateTime _shown = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        readonly StackPanel _calPanel = new StackPanel();
+        readonly Grid _clockPanel = new Grid { Visibility = Visibility.Collapsed };
+        readonly AnalogClock _analog = new AnalogClock { Width = 170, Height = 170 };
+        readonly TextBlock _digital = new TextBlock(), _digitalSub = new TextBlock();
+        static bool _showClock, _analogMode = true;
 
         public ClockView()
         {
@@ -32,7 +37,7 @@ namespace Crest.Views
             root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             // calendar
-            var cal = new StackPanel();
+            var cal = _calPanel;
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
             var next = new Button { Style = Ui.StyleRes("IconButton"), Content = Glyphs.Right, Width = 26, Height = 26, FontSize = 10 };
             var prev = new Button { Style = Ui.StyleRes("IconButton"), Content = Glyphs.Left, Width = 26, Height = 26, FontSize = 10 };
@@ -63,7 +68,38 @@ namespace Crest.Views
             }
             cal.Children.Add(names);
             cal.Children.Add(_days);
-            var calCard = new Border { Style = Ui.StyleRes("Card"), Child = cal };
+            // Big clock (digital with seconds, or analog)
+            _digital.FontFamily = (FontFamily)Application.Current.FindResource("DisplayFont");
+            _digital.FontSize = 44; _digital.FontWeight = FontWeights.SemiBold;
+            _digital.HorizontalAlignment = HorizontalAlignment.Center;
+            _digital.Typography.NumeralAlignment = FontNumeralAlignment.Tabular;
+            _digitalSub.FontSize = 12; _digitalSub.Foreground = Ui.Res("Text2Brush"); _digitalSub.HorizontalAlignment = HorizontalAlignment.Center;
+            var dig = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            dig.Children.Add(_digital); dig.Children.Add(_digitalSub);
+            _clockPanel.Children.Add(dig);
+            _clockPanel.Children.Add(_analog);
+            _clockPanel.MouseLeftButtonUp += (s, e) => { _analogMode = !_analogMode; ApplyClockMode(); };
+            _clockPanel.Background = Brushes.Transparent;
+            _clockPanel.Cursor = Cursors.Hand;
+            _clockPanel.ToolTip = "Click to switch analog / digital";
+
+            var calWrap = new DockPanel();
+            var modes = new StackPanel { Orientation = Orientation.Horizontal };
+            foreach (var (label, isClock) in new[] { ("Calendar", false), ("Clock", true) })
+            {
+                var rb = new RadioButton { Style = Ui.StyleRes("Seg"), Content = label, GroupName = "clock-mode", IsChecked = isClock == _showClock, Padding = new Thickness(10, 3, 10, 3), FontSize = 11.5 };
+                var ic = isClock;
+                rb.Checked += (s, e) => { _showClock = ic; ApplyClockMode(); };
+                modes.Children.Add(rb);
+            }
+            var modeBorder = new Border { Background = Ui.Res("Card2Brush"), CornerRadius = new CornerRadius(9), Padding = new Thickness(2), Child = modes, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 8) };
+            DockPanel.SetDock(modeBorder, Dock.Top);
+            calWrap.Children.Add(modeBorder);
+            var stack = new Grid();
+            stack.Children.Add(_calPanel);
+            stack.Children.Add(_clockPanel);
+            calWrap.Children.Add(stack);
+            var calCard = new Border { Style = Ui.StyleRes("Card"), Child = calWrap, Padding = new Thickness(14, 10, 14, 10) };
             root.Children.Add(calCard);
 
             // world clocks
@@ -103,8 +139,18 @@ namespace Crest.Views
             _timer.Tick += (s, e) => UpdateClocks();
         }
 
+        void ApplyClockMode()
+        {
+            _calPanel.Visibility = _showClock ? Visibility.Collapsed : Visibility.Visible;
+            _clockPanel.Visibility = _showClock ? Visibility.Visible : Visibility.Collapsed;
+            _analog.Visibility = _analogMode ? Visibility.Visible : Visibility.Collapsed;
+            ((FrameworkElement)_clockPanel.Children[0]).Visibility = _analogMode ? Visibility.Collapsed : Visibility.Visible;
+            UpdateClocks();
+        }
+
         public void OnActivated()
         {
+            ApplyClockMode();
             BuildMonth();
             BuildClocks();
             _timer.Start();
@@ -183,6 +229,15 @@ namespace Crest.Views
         void UpdateClocks()
         {
             var nowUtc = DateTime.UtcNow;
+            if (_showClock)
+            {
+                var n = DateTime.Now;
+                bool h24c = CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains("H");
+                _digital.Text = n.ToString(h24c ? "HH:mm:ss" : "h:mm:ss", CultureInfo.CurrentCulture);
+                var off = TimeZoneInfo.Local.GetUtcOffset(n);
+                _digitalSub.Text = n.ToString("dddd, d MMMM yyyy", CultureInfo.CurrentCulture) + $"  ·  UTC{(off < TimeSpan.Zero ? "−" : "+")}{off.Duration():hh\:mm}";
+                _analog.InvalidateVisual();
+            }
             var local = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, TimeZoneInfo.Local);
             bool h24 = CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains("H");
             foreach (Grid row in _clocks.Children.OfType<Grid>())
@@ -234,6 +289,40 @@ namespace Crest.Views
                 };
                 _zoneResults.Children.Add(b);
             }
+        }
+    }
+
+    /// <summary>Minimal Apple-style analog clock face.</summary>
+    public sealed class AnalogClock : FrameworkElement
+    {
+        protected override void OnRender(DrawingContext dc)
+        {
+            double size = Math.Min(ActualWidth, ActualHeight);
+            if (size < 20) return;
+            var c = new Point(ActualWidth / 2, ActualHeight / 2);
+            double r = size / 2 - 1;
+            dc.DrawEllipse(Ui.Res("Card2Brush"), null, c, r, r);
+            var tick = new Pen(Ui.Res("Text3Brush"), 1.2);
+            var hourTick = new Pen(Brushes.White, 2.4) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+            for (int i = 0; i < 60; i++)
+            {
+                double a = i * Math.PI / 30;
+                bool hour = i % 5 == 0;
+                double r1 = r - (hour ? 12 : 6), r2 = r - 3;
+                dc.DrawLine(hour ? hourTick : tick, new Point(c.X + r1 * Math.Sin(a), c.Y - r1 * Math.Cos(a)), new Point(c.X + r2 * Math.Sin(a), c.Y - r2 * Math.Cos(a)));
+            }
+            var now = DateTime.Now;
+            double sec = now.Second, min = now.Minute + sec / 60, hr = (now.Hour % 12) + min / 60;
+            void hand(double angleDeg, double len, double width, Brush brush, double tail)
+            {
+                double a = angleDeg * Math.PI / 180;
+                var pen = new Pen(brush, width) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+                dc.DrawLine(pen, new Point(c.X - tail * Math.Sin(a), c.Y + tail * Math.Cos(a)), new Point(c.X + len * Math.Sin(a), c.Y - len * Math.Cos(a)));
+            }
+            hand(hr * 30, r * 0.5, 5, Brushes.White, 0);
+            hand(min * 6, r * 0.75, 3.5, Brushes.White, 0);
+            hand(sec * 6, r * 0.85, 1.5, (Brush)Application.Current.FindResource("AccentBrush"), r * 0.15);
+            dc.DrawEllipse((Brush)Application.Current.FindResource("AccentBrush"), null, c, 3.5, 3.5);
         }
     }
 }

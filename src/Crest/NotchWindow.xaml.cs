@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -46,23 +47,35 @@ namespace Crest
 
         enum Mode { Idle, Media, Timer, Toast, Hud }
 
-        static readonly (string Key, string Glyph, string Tip)[] Tabs =
+        public static readonly (string Key, string Glyph, string Title, string Sub)[] AllTabs =
         {
-            ("Home", Glyphs.Home, "Home"),
-            ("Shelf", Glyphs.Folder, "Shelf — drop files to keep them handy"),
-            ("Launch", Glyphs.Apps, "Quick launch"),
-            ("Clipboard", Glyphs.Clipboard, "Clipboard history  (Ctrl+Alt+V)"),
-            ("Notes", Glyphs.Note, "Notes & to-dos"),
-            ("Timers", Glyphs.Stopwatch, "Pomodoro, timer, stopwatch, water"),
-            ("System", Glyphs.Chart, "System monitor"),
-            ("Weather", Glyphs.Cloud, "Weather"),
-            ("Clock", Glyphs.Calendar, "Calendar & world clock"),
-            ("Settings", Glyphs.Settings, "Settings")
+            ("Home", Glyphs.Home, "Home", ""),
+            ("Shelf", Glyphs.Folder, "Shelf", "Parked files"),
+            ("Launch", Glyphs.Link, "Links", "Apps, sites & web search"),
+            ("Clipboard", Glyphs.Clipboard, "Clipboard", ""),
+            ("Notes", Glyphs.Note, "Notes", "Notes & to-dos"),
+            ("Timers", Glyphs.Stopwatch, "Timers", "Focus & intervals"),
+            ("System", Glyphs.Chart, "System", "Performance · Network · Power"),
+            ("Weather", Glyphs.Cloud, "Weather", ""),
+            ("Clock", Glyphs.Calendar, "Clock", "Calendar & world time"),
+            ("Units", Glyphs.Calculator, "Units", "Conversion"),
+            ("ScreenTime", Glyphs.ScreenTime, "Screen Time", "Today"),
+            ("AI", Glyphs.Robot, "AI Coding", "Claude Code & Codex"),
+            ("Message", Glyphs.Message, "Message", "Notch banner"),
+            ("Settings", Glyphs.Settings, "Settings", "")
         };
+
+        static IEnumerable<(string Key, string Glyph, string Title, string Sub)> Tabs =>
+            AllTabs.Where(t => t.Key == "Home" || t.Key == "Settings" || !S.HiddenTabs.Contains(t.Key));
 
         IntPtr _hwnd, _monitor, _prevFg, _lastFg;
         HwndSource? _source;
-        bool _expanded, _hiddenFs, _userHidden, _dragOut, _canActivate, _selecting, _capsInit, _capsState;
+        bool _expanded, _hiddenFs, _userHidden, _dragOut, _canActivate, _selecting, _capsInit, _capsState, _tucked;
+        int _tabIndex;
+        string _lastMinute = "";
+        readonly DispatcherTimer _msgTimer = new DispatcherTimer();
+        string _msgText = "";
+        int _msgPos;
         Mode _mode = Mode.Idle;
         Size _bodySize;
         Toast? _toast;
@@ -80,16 +93,18 @@ namespace Crest
         // ---------- geometry ----------
         double K => S.Size == "Small" ? 0.9 : S.Size == "Large" ? 1.12 : 1.0;
         bool Island => S.Style == "Island";
-        bool LineIdle => S.IdleLook == "Line";
+        bool HiddenIdle => S.Visibility == "Hidden";
+        bool LineIdle => S.Visibility == "Minimal" || (S.Visibility == "Smart" && _tucked);
+        bool CornerInfo => S.RestingInfo == "Corners" && !LineIdle && !HiddenIdle;
         double Shoulder => Island ? 0 : 9;
         double TopGap => Island ? 7 : 0;
         double RowH => Math.Round(32 * K);
         Size NotchIdle => new Size(Math.Round(186 * K), RowH);
-        Size IdleBody => LineIdle ? new Size(Math.Round(150 * K), 5) : NotchIdle;
+        Size IdleBody => HiddenIdle ? new Size(0, 0) : LineIdle ? new Size(Math.Round(150 * K), 5) : CornerInfo ? new Size(Math.Round(250 * K), RowH) : NotchIdle;
         Size ActivityBody => new Size(Math.Round(300 * K), RowH);
         Size ToastBody => new Size(Math.Round(350 * K), RowH);
         Size HudBody => new Size(Math.Round(300 * K), Math.Round(50 * K));
-        static readonly Size ExpandedBody = new Size(740, 376);
+        static readonly Size ExpandedBody = new Size(744, 432);
         double ExpandedRadius => Island ? 30 : 26;
         Size CollapsedWindow => new Size(Math.Round(360 * K) + 2 * Shoulder + 40, Math.Round(56 * K) + TopGap + 14);
         Size ExpandedWindow => new Size(ExpandedBody.Width + 2 * Shoulder + 40, ExpandedBody.Height + TopGap + 30);
@@ -140,6 +155,19 @@ namespace Crest
             PreviewDragOver += (s, e) => _lastDragOver = DateTime.Now;
             PreviewDrop += (s, e) => _lastDragOver = DateTime.MinValue;
 
+            SettingsButton.Click += (s, e) => SelectTab("Settings");
+            CloseButton.Click += (s, e) => { PinButton.IsChecked = false; Collapse(); };
+            DockBorder.PreviewMouseWheel += (s, e) =>
+            {
+                var keys = Tabs.Select(t => t.Key).ToList();
+                int i = keys.IndexOf(_tab);
+                if (i < 0) return;
+                i = Math.Clamp(i + (e.Delta < 0 ? 1 : -1), 0, keys.Count - 1);
+                SelectTab(keys[i]);
+                e.Handled = true;
+            };
+            _msgTimer.Tick += (s, e) => MessageTick();
+
             BuildTabs();
             SettingsStore.Changed += ApplySettings;
             SourceInitialized += OnSourceInitialized;
@@ -187,6 +215,10 @@ namespace Crest
             TimerService.Instance.StateChanged += () => UpdateCollapsed();
             TimerService.Instance.Tick += () => { if (_mode == Mode.Timer) RefreshActivityContent(); };
             TimerService.Instance.Alert += OnTimerAlert;
+            Safe("screentime", () => ScreenTimeService.Instance.Init(Dispatcher));
+            ScreenTimeService.Instance.LimitReached += m => ShowToast(new Toast { Kind = "limit", Glyph = "⏳", Emoji = true, Title = "Screen time limit", Value = ScreenTimeService.Format(m * 60), ValueBrush = Ui.Res("OrangeBrush"), Duration = TimeSpan.FromSeconds(4) });
+            ClipboardService.Instance.Copied += OnCopied;
+            PowerService.Instance.Full += () => { if (S.BatteryAlerts) ShowToast(new Toast { Kind = "power", Title = "Fully charged", Value = "100%", ValueBrush = Ui.Res("GreenBrush"), Battery = 100, Charging = false, Duration = TimeSpan.FromSeconds(2.6) }); };
             Safe("stores", () => { NotesStore.Load(); TrayStore.Shelf.EnsureLoaded(); TrayStore.Launch.EnsureLoaded(); });
             UpdateBattery();
             UpdatePrivacy();
@@ -245,7 +277,8 @@ namespace Crest
 
             Shape.IsIsland = Island;
             Shape.Shoulder = Shoulder;
-            Shape.Stroke = Island ? Ui.Brush("#2EFFFFFF") : null;
+            Shape.Stroke = Island || S.Outline ? Ui.Brush(S.Outline ? "#47FFFFFF" : "#2EFFFFFF") : null;
+            BuildTabs();
             Notch.Margin = new Thickness(0, TopGap, 0, 0);
             HoverZone.Margin = new Thickness(0, 0, 0, 0);
             HoverZone.Height = Math.Max(10, TopGap + 8);
@@ -346,8 +379,11 @@ namespace Crest
             Shape.Fill = Brushes.Black;
             (TabHost.Content as ITabView)?.OnActivated();
 
+            ApplyShadow(true);
+            UpdateHeader();
             Fade(CollapsedLayer, 0, 90, 0);
             ExpandedLayer.Visibility = Visibility.Visible;
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => MovePill(false)));
             Fade(ExpandedLayer, 1, 240, 110);
             ExpandedShift.BeginAnimation(TranslateTransform.YProperty,
                 new DoubleAnimation(-10, 0, TimeSpan.FromMilliseconds(420)) { BeginTime = TimeSpan.FromMilliseconds(90), EasingFunction = new SpringEase { Damping = 0.8 } });
@@ -379,6 +415,7 @@ namespace Crest
             {
                 if (_expanded || gen != _gen) return;
                 ExpandedLayer.Visibility = Visibility.Collapsed;
+                ApplyShadow(false);
                 PositionWindow(CollapsedWindow);
             });
         }
@@ -399,22 +436,38 @@ namespace Crest
         // ================= tabs =================
         void BuildTabs()
         {
-            foreach (var (key, glyph, tip) in Tabs)
+            var keys = Tabs.Select(t => t.Key).ToList();
+            if (keys.SequenceEqual(_tabButtons.Keys) && TabBar.Children.Count == keys.Count) return;
+            TabBar.Children.Clear();
+            _tabButtons.Clear();
+            foreach (var (key, glyph, title, _) in Tabs)
             {
-                var rb = new RadioButton { Style = Ui.StyleRes("TabButton"), Content = glyph, GroupName = "notch-tabs", ToolTip = tip };
+                var rb = new RadioButton { Style = Ui.StyleRes("TabButton"), Content = glyph, GroupName = "notch-tabs", ToolTip = title };
                 var k = key;
                 rb.Checked += (s, e) => { if (!_selecting) SelectTab(k); };
                 _tabButtons[key] = rb;
                 TabBar.Children.Add(rb);
             }
+            if (!_tabButtons.ContainsKey(_tab)) _tab = "Home";
+            _selecting = true;
+            _tabButtons[_tab].IsChecked = true;
+            _selecting = false;
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => MovePill(false)));
         }
 
         public void SelectTab(string key)
         {
-            if (!_tabButtons.ContainsKey(key)) key = "Home";
+            if (!_tabButtons.ContainsKey(key))
+            {
+                if (AllTabs.Any(t => t.Key == key)) { S.HiddenTabs.Remove(key); SettingsStore.Save(); BuildTabs(); }
+                else key = "Home";
+            }
             bool changed = key != _tab || TabHost.Content == null;
             var old = TabHost.Content as ITabView;
+            var keys = Tabs.Select(t => t.Key).ToList();
+            int newIndex = keys.IndexOf(key), oldIndex = keys.IndexOf(_tab);
             _tab = key;
+            _tabIndex = newIndex;
             if (S.LastTab != key) { S.LastTab = key; SettingsStore.Save(); }
             _selecting = true;
             _tabButtons[key].IsChecked = true;
@@ -430,7 +483,66 @@ namespace Crest
             }
             TabHost.Content = view;
             if (_expanded) (view as ITabView)?.OnActivated();
-            view.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(170)));
+            UpdateHeader();
+            MovePill(_expanded && S.TabAnimations);
+
+            // Direction-aware slide: new content comes in from the side you moved towards.
+            if (S.TabAnimations && _expanded && oldIndex >= 0 && newIndex != oldIndex)
+            {
+                double from = newIndex > oldIndex ? 28 : -28;
+                TabShift.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(from, 0, TimeSpan.FromMilliseconds(380)) { EasingFunction = new SpringEase { Damping = 0.86 } });
+                view.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200)));
+            }
+            else view.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(160)));
+        }
+
+        /// <summary>Slide the white dock pill under the selected tab, stretching mid-flight like iOS.</summary>
+        void MovePill(bool animate)
+        {
+            if (!_tabButtons.TryGetValue(_tab, out var rb) || !rb.IsLoaded) return;
+            double x;
+            try { x = rb.TranslatePoint(new Point(0, 0), PillCanvas).X; } catch { return; }
+            if (!animate)
+            {
+                PillX.BeginAnimation(TranslateTransform.XProperty, null);
+                PillX.X = x;
+                return;
+            }
+            double dist = Math.Abs(x - PillX.X);
+            PillX.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(x, TimeSpan.FromMilliseconds(420)) { EasingFunction = new SpringEase { Damping = 0.74 } });
+            if (dist > 1)
+            {
+                var stretch = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromMilliseconds(360) };
+                stretch.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromPercent(0)));
+                stretch.KeyFrames.Add(new EasingDoubleKeyFrame(1 + Math.Min(0.45, dist / 220), KeyTime.FromPercent(0.35), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
+                stretch.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromPercent(1), new SpringEase { Damping = 0.6 }));
+                PillScale.BeginAnimation(ScaleTransform.ScaleXProperty, stretch);
+            }
+        }
+
+        public void UpdateHeader()
+        {
+            var t = AllTabs.FirstOrDefault(x => x.Key == _tab);
+            if (t.Key == null) return;
+            HeaderGlyph.Text = t.Glyph;
+            HeaderTitle.Text = t.Title;
+            string sub = t.Sub;
+            if (t.Key == "Home") sub = DateTime.Now.ToString("dddd, d MMM", System.Globalization.CultureInfo.CurrentCulture);
+            else if (t.Key == "Clipboard") { int n = ClipboardService.Instance.Items.Count; sub = n == 1 ? "1 item" : $"{n} items"; }
+            else if (t.Key == "Weather") sub = S.City ?? "Set a location";
+            else if (t.Key == "Settings") { var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version; sub = v == null ? "Crest" : $"Crest {v.Major}.{v.Minor}.{v.Build}"; }
+            HeaderSub.Text = sub;
+        }
+
+        void ApplyShadow(bool on)
+        {
+            double blur = S.Shadow switch { "Subtle" => 16, "Medium" => 28, "Deep" => 44, _ => 0 };
+            if (!on || blur <= 0) { Notch.Effect = null; return; }
+            Notch.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                BlurRadius = blur, ShadowDepth = blur / 4, Direction = 270, Opacity = S.Shadow == "Deep" ? 0.75 : 0.55, Color = Colors.Black,
+                RenderingBias = System.Windows.Media.Effects.RenderingBias.Performance
+            };
         }
 
         static FrameworkElement CreateView(string key) => key switch
@@ -444,6 +556,10 @@ namespace Crest
             "System" => new SystemView(),
             "Weather" => new WeatherView(),
             "Clock" => new ClockView(),
+            "Units" => new UnitsView(),
+            "ScreenTime" => new ScreenTimeView(),
+            "AI" => new AiView(),
+            "Message" => new MessageView(),
             _ => new SettingsView()
         };
 
@@ -533,6 +649,11 @@ namespace Crest
                 if (!_hiddenFs && !_userHidden) ReassertTopmost();
             }
             if (!_expanded && S.Display == "Cursor" && TargetMonitor() != _monitor) PositionWindow(CollapsedWindow);
+            bool tuck = S.Visibility == "Smart" && fg != _hwnd && fg != IntPtr.Zero && Win32.IsZoomed(fg) &&
+                        Win32.MonitorFromWindow(fg, Win32.MONITOR_DEFAULTTONEAREST) == _monitor;
+            if (tuck != _tucked) { _tucked = tuck; UpdateCollapsed(true); }
+            var minute = DateTime.Now.ToString("HHmm");
+            if (minute != _lastMinute) { _lastMinute = minute; if (_mode == Mode.Idle && CornerInfo) RefreshActivityContent(); if (_expanded && _tab == "Home") UpdateHeader(); }
         }
 
         bool IsFullscreenActive()
@@ -609,25 +730,27 @@ namespace Crest
             bool privacy = S.PrivacyDots && (PrivacyService.Instance.MicInUse || PrivacyService.Instance.CamInUse);
             MediaArt.Visibility = m == Mode.Media ? Visibility.Visible : Visibility.Collapsed;
             Equalizer.Visibility = m == Mode.Media ? Visibility.Visible : Visibility.Collapsed;
-            bool labelled = m == Mode.Timer || m == Mode.Toast || m == Mode.Hud;
+            bool labelled = m == Mode.Timer || m == Mode.Toast || m == Mode.Hud || (m == Mode.Idle && CornerInfo);
             LeftLabel.Visibility = labelled ? Visibility.Visible : Visibility.Collapsed;
             RightText.Visibility = labelled ? Visibility.Visible : Visibility.Collapsed;
-            RightBattery.Visibility = m == Mode.Toast && _toast?.Battery != null ? Visibility.Visible : Visibility.Collapsed;
+            RightBattery.Visibility = (m == Mode.Toast && _toast?.Battery != null) || (m == Mode.Idle && CornerInfo && PowerService.Instance.HasBattery) ? Visibility.Visible : Visibility.Collapsed;
+            if (_toast?.Kind != "msg") { _msgTimer.Stop(); LeftText.MaxWidth = 170; LeftText.BeginAnimation(OpacityProperty, null); }
             HudBar.Visibility = m == Mode.Hud ? Visibility.Visible : Visibility.Collapsed;
             RefreshActivityContent();
 
             Size body = m switch
             {
-                Mode.Idle => LineIdle && privacy ? NotchIdle : IdleBody,
+                Mode.Idle => (LineIdle || HiddenIdle) && privacy ? NotchIdle : IdleBody,
                 Mode.Media => ActivityBody,
                 Mode.Timer => ActivityBody,
                 Mode.Hud => HudBody,
-                _ => ToastBody
+                _ => _toast?.Kind == "msg" ? new Size(Math.Round(420 * K), RowH) : ToastBody
             };
             bool line = m == Mode.Idle && LineIdle && !privacy;
             double radius = Island ? body.Height / 2 : line ? 2.5 : m == Mode.Idle ? Math.Round(11 * K) : m == Mode.Hud ? Math.Round(16 * K) : Math.Round(13 * K);
             Shape.Fill = line ? Ui.Brush("#FF48484A") : Brushes.Black;
-            HoverZone.Width = Math.Max(body.Width, IdleBody.Width) + 2 * Shoulder;
+            HoverZone.Width = Math.Max(Math.Max(body.Width, IdleBody.Width), 150) + 2 * Shoulder;
+            HoverZone.Visibility = HiddenIdle || _expanded ? Visibility.Collapsed : Visibility.Visible;
 
             if (force || modeChanged || body != _bodySize)
             {
@@ -661,9 +784,31 @@ namespace Crest
                         MediaArt.Background = Ui.Brush("#FF2C2C2E");
                         MediaArtGlyph.Visibility = Visibility.Visible;
                     }
-                    var eq = new SolidColorBrush(md.ArtColor ?? Ui.AccentColor);
-                    eq.Freeze();
-                    foreach (var b in _bars) b.Fill = eq;
+                    if (S.EqColor == "Rainbow")
+                    {
+                        var hues = new[] { "#FF453A", "#FF9F0A", "#30D158", "#0A84FF" };
+                        for (int i = 0; i < _bars.Length; i++) _bars[i].Fill = Ui.Brush(hues[i]);
+                    }
+                    else
+                    {
+                        var eq = new SolidColorBrush(S.EqColor == "Accent" ? Ui.AccentColor : md.ArtColor ?? Ui.AccentColor);
+                        eq.Freeze();
+                        foreach (var b in _bars) b.Fill = eq;
+                    }
+                    break;
+
+                case Mode.Idle:
+                    if (!CornerInfo) break;
+                    LeftGlyph.Visibility = Visibility.Collapsed;
+                    LeftText.Margin = new Thickness(0);
+                    LeftText.Visibility = Visibility.Visible;
+                    LeftText.Foreground = Brushes.White;
+                    LeftText.Text = DateTime.Now.ToString(System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains("H") ? "HH:mm" : "h:mm", System.Globalization.CultureInfo.CurrentCulture);
+                    var pw = PowerService.Instance;
+                    RightText.Text = pw.HasBattery ? $"{pw.Percent}%" : DateTime.Now.ToString("ddd d", System.Globalization.CultureInfo.CurrentCulture);
+                    RightText.Foreground = Ui.Res("Text2Brush");
+                    RightBattery.Level = pw.Percent;
+                    RightBattery.Charging = pw.OnAc && pw.Percent < 100;
                     break;
 
                 case Mode.Timer:
@@ -694,6 +839,12 @@ namespace Crest
                     LeftText.Foreground = Brushes.White;
                     RightText.Text = t.Value ?? "";
                     RightText.Foreground = t.ValueBrush ?? Brushes.White;
+                    if (t.Kind == "msg")
+                    {
+                        LeftText.MaxWidth = Math.Round(420 * K) - 2 * Math.Round(13 * K) - 30;
+                        LeftText.Foreground = t.GlyphBrush ?? Brushes.White;
+                        StartMessage(t.Title);
+                    }
                     if (t.Battery.HasValue) { RightBattery.Level = t.Battery.Value; RightBattery.Charging = t.Charging; }
                     if (t.IsHud)
                         HudScale.BeginAnimation(ScaleTransform.ScaleXProperty,
@@ -774,6 +925,63 @@ namespace Crest
                 Title = name, Value = connected ? "Connected" : "Disconnected", ValueBrush = connected ? Ui.Res("GreenBrush") : Ui.Res("Text2Brush"),
                 Duration = TimeSpan.FromSeconds(2.8)
             });
+        }
+
+        void OnCopied(ClipItem item)
+        {
+            if (!S.CopiedHud) return;
+            string what = item.Kind == "image" ? "Image" : item.Kind == "files" ? (item.Files?.Count == 1 ? "1 file" : $"{item.Files?.Count} files") : item.IsLink ? "Link" : "Text";
+            string? value = S.CopiedHideContent || item.Kind != "text" ? what : item.Preview;
+            ShowToast(new Toast { Kind = "copied", Glyph = Glyphs.Copy, Title = "Copied", Value = value, ValueBrush = Ui.Res("Text2Brush"), Duration = TimeSpan.FromSeconds(1.3) });
+        }
+
+        /// <summary>Show custom text on the collapsed notch (Message tab).</summary>
+        public void Flash(string text, Brush color, int seconds)
+        {
+            if (_expanded) { PinButton.IsChecked = false; Collapse(); }
+            Ui.Later(_expanded ? 0 : 450, () => ShowToast(new Toast { Kind = "msg", Glyph = "", Title = text, GlyphBrush = color, Duration = TimeSpan.FromSeconds(Math.Max(2, seconds)) }));
+        }
+
+        void StartMessage(string text)
+        {
+            _msgText = text;
+            _msgPos = 0;
+            _msgTimer.Stop();
+            LeftText.BeginAnimation(OpacityProperty, null);
+            switch (S.MsgAnim)
+            {
+                case "Scroll":
+                    _msgTimer.Interval = TimeSpan.FromMilliseconds(130);
+                    LeftText.Text = text;
+                    if (text.Length > 34) _msgTimer.Start();
+                    break;
+                case "Pulse":
+                    LeftText.Text = text;
+                    LeftText.BeginAnimation(OpacityProperty, new DoubleAnimation(1, 0.35, TimeSpan.FromMilliseconds(700)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = new SineEase() });
+                    break;
+                default:
+                    _msgTimer.Interval = TimeSpan.FromMilliseconds(45);
+                    LeftText.Text = "";
+                    _msgTimer.Start();
+                    break;
+            }
+        }
+
+        void MessageTick()
+        {
+            if (_toast?.Kind != "msg") { _msgTimer.Stop(); return; }
+            if (S.MsgAnim == "Scroll")
+            {
+                var padded = _msgText + "      ";
+                _msgPos = (_msgPos + 1) % padded.Length;
+                LeftText.Text = (padded.Substring(_msgPos) + padded.Substring(0, _msgPos));
+            }
+            else
+            {
+                _msgPos++;
+                LeftText.Text = _msgText.Substring(0, Math.Min(_msgPos, _msgText.Length)) + (_msgPos < _msgText.Length ? "▌" : "");
+                if (_msgPos >= _msgText.Length) _msgTimer.Stop();
+            }
         }
 
         void OnTimerAlert(TimerAlert a)

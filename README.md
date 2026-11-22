@@ -32,23 +32,31 @@ It is a native WPF app on .NET 8. No Electron, no browser engine in the backgrou
 | **Bluetooth** | "Connected / Disconnected" pop-up for earbuds, headphones and other paired devices. |
 | **Privacy indicators** | Orange dot while an app uses the microphone, green for the camera (hover in the expanded view to see which app). |
 | **Caps Lock** | On/off indicator. |
+| **Copied** | Quick "Copied · Text" confirmation (content hidden by default). |
+| **Message** | Your own text, flashed on demand. |
 
 ### Expanded notch (hover or click)
+A header shows the current tab and a subtitle. A bottom dock holds your modules, and its white pill slides and stretches between tabs. Content slides in from the side you moved towards, and the mouse wheel over the dock flips tabs.
+
 | Tab | What it does |
 |---|---|
-| **Home** | Media player with seek bar, clock, weather, quick toggles (Keep awake, Mute, Mic off, Snip, Lock), volume & brightness sliders. |
-| **Shelf** | Drag files onto the notch to park them, then drag them out into any app. Text and links work too. "Drag all" moves everything at once. |
-| **Quick Launch** | Pin apps, shortcuts, folders and links; click to open, drag to reorder. |
-| **Clipboard** | History of text, images and files with search and pinning. Skips content password managers mark as private. |
+| **Home** | Now playing with seek bar, clock, weather, CPU/RAM rings, focus timer, screen time, quick toggles (Keep awake, Mute, Mic off, Snip, Lock), volume & brightness. |
+| **Shelf** | Drag files onto the notch to park them, then drag them out into any app. Paste or choose files too. "Drag all" moves everything at once. |
+| **Links** | Web search bar (Google, YouTube, GitHub, Stack Overflow, ChatGPT, Claude, Perplexity, Wikipedia) plus pinned apps, folders and sites. |
+| **Clipboard** | History of text, images, links and files with filter chips, search, a preview pane and pinning. Skips content password managers mark as private. |
 | **Notes** | Autosaving scratchpad plus a to-do list. |
 | **Timers** | Pomodoro (focus / break / long break / cycles / auto-start / daily count), countdown with presets, stopwatch with laps, water tracker with reminders. |
-| **System** | CPU, memory, network speed, disks, battery and uptime with live graphs. |
+| **System** | CPU, memory, network speed with Wi-Fi name and link rate, disks, battery with health, and uptime, with live graphs. |
 | **Weather** | Current conditions, 12-hour strip and 6-day forecast from [Open-Meteo](https://open-meteo.com) (free, no API key). |
-| **Clock** | Month calendar and world clocks for any Windows time zone. |
-| **Settings** | Notch or floating Island style, three sizes, "thin line" idle mode, accent colours, hover delay, hide in full screen, hide from screen sharing, display choice, start with Windows, per-activity toggles. |
+| **Clock** | Month calendar, big digital (with seconds) or analog clock, world clocks for any time zone. |
+| **Units** | Currency (European Central Bank rates), length, mass, temperature, data, volume, speed, time, area. |
+| **Screen Time** | Per-app foreground time today, last 7 days, optional daily limit with a notch alert. Only app names are recorded, never window titles or content. |
+| **AI Coding** | Today's Claude Code and Codex token usage, messages, tool calls, sessions, active hours, per-model and 7-day breakdown. Read from the logs those tools already keep on your PC. No prices are guessed. |
+| **Message** | Flash your own text on the notch (type-on, scroll or pulse; your colour; 3–30 s). |
+| **Settings** | Notch or Island style; visibility Always / Smart (tucks away over maximized apps) / Minimal / Hidden; time & battery in the notch corners; outline; shadow; accent and music colours; module on/off; backup export & import. |
 
 ### Behaviour details
-- **Stays out of your way.** It hides automatically for full-screen games, videos and presentations. The thin-line idle mode keeps browser tabs underneath clickable.
+- **Stays out of your way.** It hides automatically for full-screen games, videos and presentations. **Smart** visibility shrinks it to a thin line whenever the app under it is maximized, so browser tabs stay clickable.
 - **Doesn't steal focus.** Clicking buttons in the notch leaves your current app focused. Only text fields take keyboard focus, and focus goes back to your app when the notch closes.
 - **Spring animations** tuned to match the iPhone Dynamic Island.
 - **Per-monitor DPI aware**: sharp on 100 %–200 % scaling and mixed-DPI setups. It can follow the display your cursor is on.
@@ -62,6 +70,7 @@ It is a native WPF app on .NET 8. No Electron, no browser engine in the backgrou
 <tr><td><img src="docs/screenshots/tab-shelf.png" alt="Shelf"/></td><td><img src="docs/screenshots/tab-clipboard.png" alt="Clipboard"/></td></tr>
 <tr><td><img src="docs/screenshots/tab-system.png" alt="System"/></td><td><img src="docs/screenshots/tab-clock.png" alt="Clock"/></td></tr>
 <tr><td><img src="docs/screenshots/tab-notes.png" alt="Notes"/></td><td><img src="docs/screenshots/tab-settings.png" alt="Settings"/></td></tr>
+<tr><td><img src="docs/screenshots/tab-screentime.png" alt="Screen Time"/></td><td><img src="docs/screenshots/tab-units.png" alt="Units"/></td></tr>
 </table>
 
 Live activities: <img src="docs/screenshots/live-charging.png" height="70"/> <img src="docs/screenshots/live-bluetooth.png" height="70"/> <img src="docs/screenshots/live-timer.png" height="70"/> <img src="docs/screenshots/live-volume.png" height="70"/>

@@ -30,6 +30,9 @@ namespace Crest.Views
         long _rx, _tx;
         DateTime _netAt;
         int _diskTick;
+        string _wifi = "", _health = "";
+        bool _healthRead;
+        readonly TextBlock _netTitle = new TextBlock();
 
         public SystemView()
         {
@@ -44,7 +47,7 @@ namespace Crest.Views
             netRow.Children.Add(_down);
             netRow.Children.Add(new TextBlock { Text = "   ↑ ", FontSize = 15, Foreground = Ui.Res("Text2Brush"), VerticalAlignment = VerticalAlignment.Center });
             netRow.Children.Add(_up);
-            grid.Children.Add(Card("Network", Stack(netRow, _netSub, Spaced(_netLine))));
+            grid.Children.Add(Card("Network", Stack(netRow, _netSub, Spaced(_netLine)), _netTitle));
             grid.Children.Add(Card("Disks", _disks));
             var batRow = new StackPanel { Orientation = Orientation.Horizontal };
             batRow.Children.Add(_batGlyph);
@@ -61,6 +64,8 @@ namespace Crest.Views
             ReadNet(out _rx, out _tx);
             _netAt = DateTime.Now;
             _diskTick = 0;
+            ReadWifi();
+            if (!_healthRead) ReadHealth();
             Sample();
             _timer.Start();
         }
@@ -102,8 +107,10 @@ namespace Crest.Views
             _netLine.Push(down);
             _netSub.Text = $"Since connected: ↓ {Ui.Bytes(rx)}  ↑ {Ui.Bytes(tx)}";
 
-            // Disks (every 10 s)
+            // Disks (every 10 s), Wi-Fi (every 20 s)
             if (_diskTick++ % 10 == 0) RefreshDisks();
+            if (_diskTick % 20 == 0) ReadWifi();
+            _netTitle.Text = string.IsNullOrEmpty(_wifi) ? "NETWORK" : "NETWORK · " + _wifi.ToUpperInvariant();
 
             // Battery
             var p = PowerService.Instance;
@@ -114,8 +121,8 @@ namespace Crest.Views
                 _batGlyph.Level = p.Percent;
                 _batGlyph.Charging = p.OnAc && p.Percent < 100;
                 _batBig.Text = $"{p.Percent}%";
-                _batSub.Text = p.OnAc ? (p.Percent >= 100 ? "Fully charged" : "Charging") :
-                    p.SecondsLeft > 0 ? $"{TimeSpan.FromSeconds(p.SecondsLeft):h\\:mm} remaining" : "On battery";
+                _batSub.Text = (p.OnAc ? (p.Percent >= 100 ? "Fully charged" : "Charging") :
+                    p.SecondsLeft > 0 ? $"{TimeSpan.FromSeconds(p.SecondsLeft):h\\:mm} remaining" : "On battery") + _health;
             }
             else
             {
@@ -156,6 +163,57 @@ namespace Crest.Views
             }
         }
 
+        /// <summary>Wi-Fi name, signal and link rate from `netsh wlan show interfaces` (runs off the UI thread).</summary>
+        async void ReadWifi()
+        {
+            var text = await System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    var psi = new ProcessStartInfo("netsh", "wlan show interfaces") { RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
+                    using var pr = Process.Start(psi);
+                    if (pr == null) return "";
+                    var o = pr.StandardOutput.ReadToEnd();
+                    pr.WaitForExit(3000);
+                    return o;
+                }
+                catch { return ""; }
+            });
+            string ssid = "", signal = "", rate = "";
+            foreach (var raw in text.Split('\n'))
+            {
+                var line = raw.Trim();
+                int colon = line.IndexOf(':');
+                if (colon < 0) continue;
+                var key = line.Substring(0, colon).Trim();
+                var val = line.Substring(colon + 1).Trim();
+                if (key == "SSID") ssid = val;
+                else if (key == "Signal") signal = val;
+                else if (key.StartsWith("Receive rate")) rate = val + " Mbps";
+            }
+            _wifi = ssid.Length == 0 ? "" : string.Join(" · ", new[] { ssid, signal, rate }.Where(x => x.Length > 0 && x != " Mbps"));
+        }
+
+        /// <summary>Battery wear: full-charge capacity vs design capacity (WMI).</summary>
+        async void ReadHealth()
+        {
+            _healthRead = true;
+            var h = await System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    double full = 0, design = 0;
+                    using (var a = new System.Management.ManagementObjectSearcher(@"root\WMI", "SELECT FullChargedCapacity FROM BatteryFullChargedCapacity"))
+                        foreach (System.Management.ManagementObject o in a.Get()) full += Convert.ToDouble(o["FullChargedCapacity"]);
+                    using (var b = new System.Management.ManagementObjectSearcher(@"root\WMI", "SELECT DesignedCapacity FROM BatteryStaticData"))
+                        foreach (System.Management.ManagementObject o in b.Get()) design += Convert.ToDouble(o["DesignedCapacity"]);
+                    return design > 0 && full > 0 ? Math.Min(100, full / design * 100) : -1;
+                }
+                catch { return -1; }
+            });
+            _health = h > 0 ? $" · health {h:0}%" : "";
+        }
+
         static void ReadNet(out long rx, out long tx)
         {
             rx = tx = 0;
@@ -184,10 +242,13 @@ namespace Crest.Views
             return s;
         }
 
-        static Border Card(string title, UIElement body)
+        static Border Card(string title, UIElement body, TextBlock? titleBlock = null)
         {
             var s = new StackPanel();
-            s.Children.Add(new TextBlock { Text = title.ToUpperInvariant(), FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = Ui.Res("Text3Brush"), Margin = new Thickness(0, 0, 0, 6) });
+            var t = titleBlock ?? new TextBlock();
+            t.Text = title.ToUpperInvariant(); t.FontSize = 10.5; t.FontWeight = FontWeights.SemiBold; t.Foreground = Ui.Res("Text3Brush"); t.Margin = new Thickness(0, 0, 0, 6);
+            t.TextTrimming = TextTrimming.CharacterEllipsis;
+            s.Children.Add(t);
             s.Children.Add(body);
             return new Border { Style = Ui.StyleRes("Card"), Margin = new Thickness(4), Padding = new Thickness(14, 12, 14, 12), Child = s };
         }

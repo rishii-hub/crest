@@ -45,15 +45,17 @@ namespace Crest
                     await Task.Delay(250);
                 }
 
+                s.HiddenTabs.Clear();
+                BuildTabs();
                 await Task.Delay(1500);
                 Expand("Home");
                 PinButton.IsChecked = true;
                 await Task.Delay(1500);
-                foreach (var (key, _, _) in Tabs)
+                foreach (var (key, _, _, _) in Tabs)
                 {
                     if (key == "Timers") { TimerService.Instance.PomoToggle(); }
                     SelectTab(key);
-                    await Task.Delay(key == "Weather" ? 3000 : 1300);
+                    await Task.Delay(key == "Weather" || key == "Units" || key == "AI" ? 3000 : 1300);
                     Capture("tab-" + key.ToLowerInvariant());
                     if (key == "Timers") { TimerService.Instance.PomoToggle(); TimerService.Instance.PomoReset(); }
                 }
@@ -71,7 +73,12 @@ namespace Crest
                 await Task.Delay(900); Capture("live-bluetooth");
                 ShowToast(new Toast { Kind = "caps", Glyph = Glyphs.Keyboard, Title = "Caps Lock", Value = "On", ValueBrush = (Brush)FindResource("AccentBrush"), Duration = TimeSpan.FromSeconds(1.5) });
                 await Task.Delay(900); Capture("live-capslock");
+                ShowToast(new Toast { Kind = "copied", Glyph = Glyphs.Copy, Title = "Copied", Value = "Text", ValueBrush = Ui.Res("Text2Brush"), Duration = TimeSpan.FromSeconds(2) });
+                await Task.Delay(900); Capture("live-copied");
                 await Task.Delay(1500);
+                Flash("Ship it on Friday 🚀", Brushes.White, 4);
+                await Task.Delay(2200); Capture("live-message");
+                await Task.Delay(2500);
                 TimerService.Instance.CdSet(25);
                 TimerService.Instance.CdToggle();
                 await Task.Delay(1200); Capture("live-timer");
@@ -82,9 +89,11 @@ namespace Crest
                 Expand("Home");
                 await Task.Delay(1300); Capture("style-island-expanded");
                 Collapse();
-                SettingsStore.Update(x => { x.Style = "Notch"; x.IdleLook = "Line"; });
+                SettingsStore.Update(x => { x.Style = "Notch"; x.Visibility = "Minimal"; });
                 await Task.Delay(1400); Capture("idle-line");
-                SettingsStore.Update(x => x.IdleLook = "Notch");
+                SettingsStore.Update(x => { x.Visibility = "Always"; x.RestingInfo = "Corners"; });
+                await Task.Delay(1400); Capture("idle-corners");
+                SettingsStore.Update(x => x.RestingInfo = "None");
                 await Task.Delay(800);
                 Log.Write("tour: done");
             }
