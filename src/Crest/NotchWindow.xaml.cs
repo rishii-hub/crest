@@ -91,7 +91,9 @@ namespace Crest
         readonly Dictionary<string, RadioButton> _tabButtons = new Dictionary<string, RadioButton>();
 
         // ---------- geometry ----------
-        double K => S.Size == "Small" ? 0.9 : S.Size == "Large" ? 1.12 : 1.0;
+        double K => S.Size == "Small" ? 0.86 : S.Size == "Large" ? 1.16 : 1.0;
+        /// <summary>Scale of the open panel.</summary>
+        double KE => S.Size == "Small" ? 0.9 : S.Size == "Large" ? 1.12 : 1.0;
         bool Island => S.Style == "Island";
         bool HiddenIdle => S.Visibility == "Hidden";
         bool LineIdle => S.Visibility == "Minimal" || (S.Visibility == "Smart" && _tucked);
@@ -104,8 +106,9 @@ namespace Crest
         Size ActivityBody => new Size(Math.Round(300 * K), RowH);
         Size ToastBody => new Size(Math.Round(350 * K), RowH);
         Size HudBody => new Size(Math.Round(300 * K), Math.Round(50 * K));
-        static readonly Size ExpandedBody = new Size(744, 432);
-        double ExpandedRadius => Island ? 30 : 26;
+        const double BaseW = 744, BaseH = 432;
+        Size ExpandedBody => new Size(Math.Round(BaseW * KE), Math.Round(BaseH * KE));
+        double ExpandedRadius => (Island ? 30 : 26) * KE;
         Size CollapsedWindow => new Size(Math.Round(360 * K) + 2 * Shoulder + 40, Math.Round(56 * K) + TopGap + 14);
         Size ExpandedWindow => new Size(ExpandedBody.Width + 2 * Shoulder + 40, ExpandedBody.Height + TopGap + 30);
 
@@ -143,6 +146,8 @@ namespace Crest
             HoverZone.MouseLeftButtonUp += OnCollapsedClick;
 
             PreviewMouseLeftButtonDown += OnPreviewMouseDown;
+            PreviewMouseWheel += OnWheel;
+            _scrollTimer.Tick += (s, e) => ScrollStep();
             PreviewKeyDown += (s, e) =>
             {
                 if (e.Key == Key.Escape && _expanded) { PinButton.IsChecked = false; Collapse(); e.Handled = true; }
@@ -300,9 +305,11 @@ namespace Crest
             Equalizer.Height = Math.Round(16 * K);
             HudBar.Margin = new Thickness(2, RowH + Math.Round(2 * K), 2, 0);
 
-            ExpandedLayer.Width = ExpandedBody.Width - 36;
-            ExpandedLayer.Height = ExpandedBody.Height - 26;
-            ExpandedLayer.Margin = new Thickness(0, 12, 0, 0);
+            // The panel is laid out at 100% and scaled as a whole, so every size looks identical, just bigger or smaller.
+            ExpandedLayer.Width = BaseW - 36;
+            ExpandedLayer.Height = BaseH - 26;
+            ExpandedLayer.LayoutTransform = new ScaleTransform(KE, KE);
+            ExpandedLayer.Margin = new Thickness(0, Math.Round(12 * KE), 0, 0);
 
             try { Win32.SetWindowDisplayAffinity(_hwnd, S.HideFromCapture ? Win32.WDA_EXCLUDEFROMCAPTURE : Win32.WDA_NONE); } catch { }
             if (S.CapsLockHud) { if (!_capsTimer.IsEnabled) { _capsInit = false; _capsTimer.Start(); } } else _capsTimer.Stop();
@@ -594,6 +601,54 @@ namespace Crest
             _hoverTimer.Stop();
             Expand(null);
             e.Handled = true;
+        }
+
+        // ---------- smooth, distance-based wheel scrolling ----------
+        readonly DispatcherTimer _scrollTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(15) };
+        readonly Dictionary<ScrollViewer, double> _scrollTargets = new Dictionary<ScrollViewer, double>();
+
+        void OnWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (e.OriginalSource is DependencyObject src && IsInside(src, DockBorder)) return; // dock flips tabs
+            if (e.OriginalSource is DependencyObject d && Ui.FindAncestor<Slider>(d) != null) return;
+            var sv = FindScrollable(e.OriginalSource as DependencyObject, e.Delta);
+            if (sv == null) return;
+            double current = _scrollTargets.TryGetValue(sv, out var t) ? t : sv.VerticalOffset;
+            double step = -e.Delta * 0.75;                       // one notch (120) ≈ 90 px, scaled by the actual delta
+            _scrollTargets[sv] = Math.Clamp(current + step, 0, sv.ScrollableHeight);
+            if (!_scrollTimer.IsEnabled) _scrollTimer.Start();
+            e.Handled = true;
+        }
+
+        static bool IsInside(DependencyObject child, DependencyObject parent)
+        {
+            for (var d = child; d != null; d = d is Visual || d is System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d))
+                if (d == parent) return true;
+            return false;
+        }
+
+        static ScrollViewer? FindScrollable(DependencyObject? d, int delta)
+        {
+            while (d != null)
+            {
+                if (d is ScrollViewer sv && sv.ScrollableHeight > 0.5 &&
+                    ((delta < 0 && sv.VerticalOffset < sv.ScrollableHeight - 0.5) || (delta > 0 && sv.VerticalOffset > 0.5)))
+                    return sv;
+                d = d is Visual || d is System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d);
+            }
+            return null;
+        }
+
+        void ScrollStep()
+        {
+            foreach (var sv in _scrollTargets.Keys.ToList())
+            {
+                double target = Math.Clamp(_scrollTargets[sv], 0, sv.ScrollableHeight);
+                double cur = sv.VerticalOffset, next = cur + (target - cur) * 0.32;
+                if (Math.Abs(target - next) < 0.6) { sv.ScrollToVerticalOffset(target); _scrollTargets.Remove(sv); }
+                else sv.ScrollToVerticalOffset(next);
+            }
+            if (_scrollTargets.Count == 0) _scrollTimer.Stop();
         }
 
         void OnPreviewMouseDown(object sender, MouseButtonEventArgs e)
