@@ -26,7 +26,9 @@ namespace Crest.Views
 
         public ToolsView()
         {
-            var grid = new UniformGrid { Columns = 2 };
+            // Three columns: memo + screen recording stacked | automations | LAN Drop
+            var grid = Kit.Cols(1, 1, 1);
+            var left = new StackPanel();
 
             // ---- Voice memo
             var memo = new StackPanel();
@@ -43,7 +45,7 @@ namespace Crest.Views
                 Refresh();
             };
             recRow.Children.Add(_rec);
-            var rs = new StackPanel { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Width = 150 };
+            var rs = new StackPanel { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Width = 120 };
             rs.Children.Add(_recTime);
             rs.Children.Add(_level);
             recRow.Children.Add(rs);
@@ -52,7 +54,7 @@ namespace Crest.Views
             _recNote.TextWrapping = TextWrapping.Wrap;
             memo.Children.Add(_recNote);
             memo.Children.Add(_memos);
-            grid.Children.Add(Kit.Card(memo, "Voice memo"));
+            left.Children.Add(Kit.Card(memo, "Voice memo"));
 
             // ---- Screen recording
             var scr = new StackPanel();
@@ -60,18 +62,26 @@ namespace Crest.Views
             _screen.HorizontalAlignment = HorizontalAlignment.Left;
             _screen.Click += (s, e) => { RecorderService.ToggleGameBar(); Refresh(); };
             scr.Children.Add(_screen);
-            scr.Children.Add(new TextBlock { Text = "Uses Xbox Game Bar (Win+Alt+R): it records the app in front, not the desktop, and saves to Videos\\Captures. Game Bar must be enabled.", Style = Ui.StyleRes("Caption"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 8) });
+            _screen.ToolTip = "Xbox Game Bar (Win+Alt+R) records the app in front and saves to Videos\\Captures.";
             _captureNote.TextWrapping = TextWrapping.Wrap;
+            _captureNote.Margin = new Thickness(0, 6, 0, 0);
             scr.Children.Add(_captureNote);
-            var openCaps = new Button { Style = Ui.StyleRes("Pill"), Content = "Open Captures", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0) };
+            var openCaps = new Button { Style = Ui.StyleRes("Pill"), Content = "Captures", ToolTip = "Open Videos\\Captures", Margin = new Thickness(6, 0, 0, 0) };
             openCaps.Click += (s, e) =>
             {
                 var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "Captures");
                 Directory.CreateDirectory(dir);
                 Ui.Open(dir);
             };
-            scr.Children.Add(openCaps);
-            grid.Children.Add(Kit.Card(scr, "Screen recording"));
+            scr.Children.Remove(_screen);
+            var scrRow = new StackPanel { Orientation = Orientation.Horizontal };
+            scrRow.Children.Add(_screen);
+            scrRow.Children.Add(openCaps);
+            scr.Children.Insert(0, scrRow);
+            var scrCard = Kit.Card(scr, "Screen recording");
+            scrCard.Margin = new Thickness(scrCard.Margin.Left, 8, scrCard.Margin.Right, scrCard.Margin.Bottom);
+            left.Children.Add(scrCard);
+            grid.Children.Add(Kit.At(left, 0));
 
             // ---- Automations
             var auto = new DockPanel();
@@ -82,8 +92,8 @@ namespace Crest.Views
             var help = new TextBlock { Text = "PowerShell, batch, AutoHotkey or any program. Print “progress: 40” or “[3/10]” to fill the bar.", Style = Ui.StyleRes("Caption"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) };
             DockPanel.SetDock(help, Dock.Top);
             auto.Children.Add(help);
-            auto.Children.Add(new ScrollViewer { Content = _autos, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 96 });
-            grid.Children.Add(Kit.Card(auto, "Automations"));
+            auto.Children.Add(new ScrollViewer { Content = _autos, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+            grid.Children.Add(Kit.At(Kit.Card(auto, "Automations"), 1));
 
             // ---- LAN Drop
             var drop = new StackPanel();
@@ -100,27 +110,30 @@ namespace Crest.Views
             };
             DockPanel.SetDock(_dropSwitch, Dock.Right);
             head.Children.Add(_dropSwitch);
-            head.Children.Add(new TextBlock { Text = "Receive files from your phone's browser on this Wi-Fi. Each file asks for your OK in the notch.", Style = Ui.StyleRes("Caption"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 10, 0) });
+            head.Children.Add(new TextBlock { Text = "Get files from a phone's browser on this Wi-Fi. You accept each one.", Style = Ui.StyleRes("Caption"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 10, 0) });
             drop.Children.Add(head);
             var on = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
+            _qr.Width = _qr.Height = 96;
+            _qr.VerticalAlignment = VerticalAlignment.Top;
             DockPanel.SetDock(_qr, Dock.Right);
             on.Children.Add(_qr);
             var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             info.Children.Add(Kit.Small("PIN"));
             info.Children.Add(_dropPin);
-            _dropUrl.FontSize = 11.5;
+            _dropUrl.FontSize = 10.5;
+            _dropUrl.Foreground = Ui.Res("Text2Brush");
             _dropUrl.TextWrapping = TextWrapping.Wrap;
             _dropUrl.Margin = new Thickness(0, 4, 8, 4);
             info.Children.Add(_dropUrl);
-            var folder = new Button { Style = Ui.StyleRes("Pill"), Content = "Received files", HorizontalAlignment = HorizontalAlignment.Left };
+            var folder = new Button { Style = Ui.StyleRes("Pill"), Content = "Received", ToolTip = "Open Downloads\\Crest Drop", HorizontalAlignment = HorizontalAlignment.Left };
             folder.Click += (s, e) => { Directory.CreateDirectory(LanDropService.Folder); Ui.Open(LanDropService.Folder); };
             info.Children.Add(folder);
             on.Children.Add(info);
             _dropOn.Children.Add(on);
             drop.Children.Add(_dropOn);
-            grid.Children.Add(Kit.Card(drop, "LAN Drop"));
+            grid.Children.Add(Kit.At(Kit.Card(drop, "LAN Drop"), 2));
 
-            Content = new ScrollViewer { Content = grid, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            Content = grid;
             _timer.Tick += (s, e) => Tick();
             RecorderService.Changed += () => { if (IsVisible) Refresh(); };
             AutomationService.Changed += () => { if (IsVisible) Refresh(); };
@@ -150,7 +163,7 @@ namespace Crest.Views
             if (!rec && string.IsNullOrEmpty(_recNote.Text)) _recNote.Text = "Saved as WAV in Music\\Crest Memos.";
 
             _memos.Children.Clear();
-            foreach (var f in RecorderService.Memos().Take(3))
+            foreach (var f in RecorderService.Memos().Take(1))
             {
                 var row = new DockPanel { Margin = new Thickness(0, 2, 0, 2) };
                 var acts = new StackPanel { Orientation = Orientation.Horizontal };
@@ -172,7 +185,7 @@ namespace Crest.Views
                 _memos.Children.Add(row);
             }
 
-            _screen.Content = RecorderService.GameBarRecording ? "■  Stop recording" : "●  Start recording";
+            _screen.Content = RecorderService.GameBarRecording ? "■  Stop" : "●  Record";
             _screen.Foreground = RecorderService.GameBarRecording ? Ui.Res("RedBrush") : Ui.Res("TextBrush");
 
             _autos.Children.Clear();
@@ -205,7 +218,10 @@ namespace Crest.Views
             if (dropOn)
             {
                 _dropPin.Text = LanDropService.Pin;
-                _dropUrl.Text = LanDropService.Url ?? "No network connection.";
+                var url = LanDropService.Url;
+                _dropUrl.Text = url == null ? "No network connection." : new Uri(url).Authority;
+                _dropUrl.ToolTip = url;
+                _qr.ToolTip = url == null ? null : "Scan with your phone's camera\n" + url;
                 _qr.Source = LanDropService.Qr();
             }
             Tick();

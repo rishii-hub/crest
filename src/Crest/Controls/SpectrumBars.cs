@@ -52,6 +52,7 @@ namespace Crest.Controls
             double w = ActualWidth, h = ActualHeight;
             if (w <= 0 || h <= 0) return;
             int n = _shown.Length;
+            if (!_acquired && Array.TrueForAll(_shown, v => v < 0.01f)) return; // idle: draw nothing
             double gap = 3, bw = Math.Max(1, (w - gap * (n - 1)) / n);
             for (int i = 0; i < n; i++)
             {
