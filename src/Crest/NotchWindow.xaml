@@ -101,70 +101,55 @@
           <TranslateTransform x:Name="ExpandedShift" Y="-10"/>
         </Grid.RenderTransform>
         <Grid.RowDefinitions>
-          <RowDefinition Height="30"/>
+          <RowDefinition Height="26"/>
           <RowDefinition Height="*"/>
-          <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- header: icon · title | subtitle ............ privacy · battery · pin · settings · close -->
+        <!-- header: a tiny page switcher on the left, privacy dots · pin · open app on the right. That's all. -->
         <DockPanel LastChildFill="True">
           <StackPanel x:Name="HeaderRight" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-            <StackPanel x:Name="HeaderPrivacy" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0" Visibility="Collapsed">
-              <Ellipse x:Name="HeaderCamDot" Width="7" Height="7" Fill="{DynamicResource GreenBrush}" Margin="0,0,4,0" Visibility="Collapsed"/>
-              <Ellipse x:Name="HeaderMicDot" Width="7" Height="7" Fill="{DynamicResource OrangeBrush}" Visibility="Collapsed"/>
+            <StackPanel x:Name="HeaderPrivacy" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0" Visibility="Collapsed">
+              <Ellipse x:Name="HeaderCamDot" Width="6" Height="6" Fill="{DynamicResource GreenBrush}" Margin="0,0,4,0" Visibility="Collapsed"/>
+              <Ellipse x:Name="HeaderMicDot" Width="6" Height="6" Fill="{DynamicResource OrangeBrush}" Visibility="Collapsed"/>
             </StackPanel>
-            <StackPanel x:Name="HeaderBattery" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-              <TextBlock x:Name="HeaderBatteryText" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0"/>
-              <c:BatteryGlyph x:Name="HeaderBatteryGlyph" VerticalAlignment="Center"/>
-            </StackPanel>
-            <Rectangle Width="1" Height="16" Fill="{DynamicResource DividerBrush}" Margin="0,0,6,0"/>
-            <Button x:Name="PopOutButton" Style="{StaticResource IconButton}" Content="&#xE8A7;" FontSize="12" Width="30" Height="30" ToolTip="Pop out as a floating widget (or drag the title down)"/>
-            <ToggleButton x:Name="PinButton" Style="{StaticResource IconToggle}" Content="&#xE718;" FontSize="12" Width="30" Height="30" ToolTip="Keep open"/>
-            <Button x:Name="SearchButton" Style="{StaticResource IconButton}" Content="&#xE721;" FontSize="13" Width="30" Height="30" ToolTip="Search  (Ctrl+Alt+Space)"/>
-            <Button x:Name="SettingsButton" Style="{StaticResource IconButton}" Content="&#xE713;" FontSize="13" Width="30" Height="30" ToolTip="Settings"/>
-            <Button x:Name="CloseButton" Style="{StaticResource IconButton}" Content="&#xE711;" FontSize="11" Width="30" Height="30" ToolTip="Close  (Esc)"/>
+            <ToggleButton x:Name="PinButton" Style="{StaticResource IconToggle}" Content="&#xE718;" FontSize="11" Width="26" Height="26" ToolTip="Keep open"/>
+            <Button x:Name="AppButton" Style="{StaticResource IconButton}" Content="&#xE8A9;" FontSize="12" Width="26" Height="26" ToolTip="Open Crest: every feature and setting"/>
           </StackPanel>
-          <StackPanel x:Name="HeaderLeft" Orientation="Horizontal" VerticalAlignment="Center" Background="Transparent" Cursor="SizeAll">
-            <Border Width="24" Height="24" CornerRadius="7" Background="{DynamicResource InkBrush}" Margin="2,0,10,0">
-              <TextBlock x:Name="HeaderGlyph" Style="{StaticResource Icon}" FontSize="12" Foreground="{DynamicResource OnInkBrush}" Text="&#xE80F;"/>
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+            <Border x:Name="DockBorder" Background="Transparent" CornerRadius="13" VerticalAlignment="Center">
+              <Grid>
+                <Canvas x:Name="PillCanvas" IsHitTestVisible="False">
+                  <Border x:Name="DockPill" Width="26" Height="26" CornerRadius="13" Background="{DynamicResource InkBrush}" RenderTransformOrigin="0.5,0.5">
+                    <Border.RenderTransform>
+                      <TransformGroup>
+                        <ScaleTransform x:Name="PillScale"/>
+                        <TranslateTransform x:Name="PillX"/>
+                      </TransformGroup>
+                    </Border.RenderTransform>
+                  </Border>
+                </Canvas>
+                <StackPanel x:Name="TabBar" Orientation="Horizontal"/>
+              </Grid>
             </Border>
-            <TextBlock x:Name="HeaderTitle" FontFamily="{DynamicResource DisplayFont}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Text="Home"/>
-            <Rectangle Width="1" Height="14" Fill="{DynamicResource DividerBrush}" Margin="10,0" VerticalAlignment="Center"/>
-            <TextBlock x:Name="HeaderSub" FontSize="12.5" Foreground="{DynamicResource Text2Brush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="260"/>
-            <Border x:Name="Banner" VerticalAlignment="Center" Opacity="0" IsHitTestVisible="False" Margin="14,0,0,0"
-                    Background="{DynamicResource Card2Brush}" CornerRadius="11" Padding="10,3">
+            <Border x:Name="Banner" VerticalAlignment="Center" Opacity="0" IsHitTestVisible="False" Margin="10,0,0,0"
+                    Background="{DynamicResource Card2Brush}" CornerRadius="11" Padding="9,3">
               <StackPanel Orientation="Horizontal">
-                <TextBlock x:Name="BannerGlyph" Style="{StaticResource Icon}" FontSize="12" Margin="0,0,6,0"/>
-                <TextBlock x:Name="BannerText" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock x:Name="BannerGlyph" Style="{StaticResource Icon}" FontSize="11" Margin="0,0,6,0"/>
+                <TextBlock x:Name="BannerText" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
             </Border>
           </StackPanel>
+          <!-- empty middle: grab it and pull down to pop the page out as a floating widget -->
+          <Border x:Name="HeaderLeft" Background="Transparent" Cursor="SizeAll" ToolTip="Pull down to pop out"/>
         </DockPanel>
 
-        <Grid Grid.Row="1" Margin="0,10,0,10" ClipToBounds="True">
+        <Grid Grid.Row="1" Margin="0,6,0,4" ClipToBounds="True">
           <ContentControl x:Name="TabHost" Focusable="False">
             <ContentControl.RenderTransform>
               <TranslateTransform x:Name="TabShift"/>
             </ContentControl.RenderTransform>
           </ContentControl>
         </Grid>
-
-        <!-- dock with sliding pill -->
-        <Border x:Name="DockBorder" Grid.Row="2" HorizontalAlignment="Center" Background="{DynamicResource DockBrush}" CornerRadius="22" Padding="5" Margin="0,0,0,2">
-          <Grid>
-            <Canvas x:Name="PillCanvas" IsHitTestVisible="False">
-              <Border x:Name="DockPill" Width="36" Height="36" CornerRadius="18" Background="{DynamicResource InkBrush}" RenderTransformOrigin="0.5,0.5">
-                <Border.RenderTransform>
-                  <TransformGroup>
-                    <ScaleTransform x:Name="PillScale"/>
-                    <TranslateTransform x:Name="PillX"/>
-                  </TransformGroup>
-                </Border.RenderTransform>
-              </Border>
-            </Canvas>
-            <StackPanel x:Name="TabBar" Orientation="Horizontal"/>
-          </Grid>
-        </Border>
       </Grid>
     </Grid>
   </Grid>

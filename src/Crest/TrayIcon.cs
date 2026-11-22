@@ -22,8 +22,9 @@ namespace Crest
             catch { _icon.Icon = SystemIcons.Application; }
 
             var menu = new WF.ContextMenuStrip { ShowImageMargin = false };
-            menu.Items.Add("Open Crest", null, (s, e) => notch.Expand("Home"));
-            menu.Items.Add("Settings", null, (s, e) => notch.Expand("Settings"));
+            menu.Items.Add("Open Crest", null, (s, e) => AppWindow.ShowPage("Home"));
+            menu.Items.Add("Settings", null, (s, e) => AppWindow.ShowPage("Appearance"));
+            menu.Items.Add("Show the island", null, (s, e) => notch.Expand("Home"));
             var hide = new WF.ToolStripMenuItem("Hide notch");
             hide.Click += (s, e) => notch.SetUserHidden(!notch.UserHidden);
             menu.Items.Add(hide);

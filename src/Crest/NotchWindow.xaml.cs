@@ -68,11 +68,23 @@ namespace Crest
             ("Settings", Glyphs.Settings, "Settings", "")
         };
 
-        /// <summary>Tabs that open from the header / hotkey rather than the dock.</summary>
+        /// <summary>The few compact pages the island itself shows. Everything else opens in the Crest app window.</summary>
+        public static readonly (string Key, string Glyph, string Title, string Sub)[] IslandTabs =
+        {
+            ("Home", Glyphs.Home, "Now", "Music, time, weather and battery at a glance"),
+            ("Shelf", Glyphs.Folder, "Shelf", "Drop files on the island, drag them out later"),
+            ("Timers", Glyphs.Stopwatch, "Timers", "Quick timers and Pomodoro"),
+            ("Clipboard", Glyphs.Clipboard, "Clipboard", "Your latest copies, one click to copy again"),
+            ("Launch", Glyphs.Link, "Links", "Pinned apps and sites"),
+        };
+
+        /// <summary>Island pages without a switcher button (opened by hotkey).</summary>
         static readonly HashSet<string> NonDock = new HashSet<string> { "Search" };
 
         static IEnumerable<(string Key, string Glyph, string Title, string Sub)> Tabs =>
-            AllTabs.Where(t => !NonDock.Contains(t.Key) && (t.Key == "Home" || t.Key == "Settings" || !S.HiddenTabs.Contains(t.Key)));
+            IslandTabs.Where(t => t.Key == "Home" || S.IslandPages.Contains(t.Key));
+
+        public static bool IsIslandPage(string key) => NonDock.Contains(key) || IslandTabs.Any(t => t.Key == key);
 
         IntPtr _hwnd, _monitor, _prevFg, _lastFg;
         HwndSource? _source;
@@ -97,9 +109,9 @@ namespace Crest
         readonly Dictionary<string, RadioButton> _tabButtons = new Dictionary<string, RadioButton>();
 
         // ---------- geometry ----------
-        double K => S.Size == "Small" ? 0.86 : S.Size == "Large" ? 1.16 : 1.0;
+        double K => S.Size == "Small" ? 0.8 : S.Size == "Large" ? 1.04 : 0.9;
         /// <summary>Scale of the open panel.</summary>
-        double KE => S.Size == "Small" ? 0.9 : S.Size == "Large" ? 1.12 : 1.0;
+        double KE => S.Size == "Small" ? 0.88 : S.Size == "Large" ? 1.1 : 1.0;
         bool Island => S.Style == "Island";
         bool HiddenIdle => S.Visibility == "Hidden";
         bool LineIdle => S.Visibility == "Minimal" || (S.Visibility == "Smart" && _tucked);
@@ -109,14 +121,22 @@ namespace Crest
         double RowH => Math.Round(32 * K);
         Size NotchIdle => new Size(Math.Round(186 * K), RowH);
         Size IdleBody => HiddenIdle ? new Size(0, 0) : LineIdle ? new Size(Math.Round(150 * K), 5) : CornerInfo ? new Size(Math.Round(250 * K), RowH) : NotchIdle;
-        Size ActivityBody => new Size(Math.Round(300 * K), RowH);
-        Size ToastBody => new Size(Math.Round(350 * K), RowH);
+        Size ActivityBody => new Size(Math.Round(290 * K), RowH);
+        Size ToastBody => new Size(Math.Round(330 * K), RowH);
         Size HudBody => new Size(Math.Round(300 * K), Math.Round(50 * K));
-        const double BaseW = 744, BaseH = 432;
-        Size ExpandedBody => new Size(Math.Round(BaseW * KE), Math.Round(BaseH * KE));
-        double ExpandedRadius => (Island ? 30 : 26) * KE;
+        /// <summary>Each island page has its own compact size; the island morphs between them.</summary>
+        static Size PageBase(string tab) => tab switch
+        {
+            "Shelf" or "Launch" => new Size(500, 168),
+            "Timers" => new Size(460, 176),
+            "Clipboard" => new Size(460, 232),
+            "Search" => new Size(560, 296),
+            _ => new Size(500, 184),
+        };
+        Size ExpandedBody => new Size(Math.Round(PageBase(_tab).Width * KE), Math.Round(PageBase(_tab).Height * KE));
+        double ExpandedRadius => (Island ? 26 : 22) * KE;
         Size CollapsedWindow => new Size(Math.Round(400 * K) + 2 * Shoulder + 40 + 2 * (RowH + 18), Math.Round(56 * K) + Math.Max(TopGap, 5) + 14);
-        Size ExpandedWindow => new Size(ExpandedBody.Width + 2 * Shoulder + 40, ExpandedBody.Height + TopGap + 30);
+        Size ExpandedWindow => new Size(Math.Round(560 * KE) + 2 * Shoulder + 40, Math.Round(296 * KE) + TopGap + 30);
 
         public bool IsExpanded => _expanded;
         public bool UserHidden => _userHidden;
@@ -151,7 +171,7 @@ namespace Crest
             HoverZone.MouseLeftButtonUp += OnCollapsedClick;
             HookGestures(Notch);
             HookGestures(Bubble);
-            PopOutButton.Click += (s, e) => PopOut(_tab, true);
+            AppButton.Click += (s, e) => { PinButton.IsChecked = false; Collapse(); AppWindow.ShowPage(null); };
             HookHeaderPull();
 
             PreviewMouseLeftButtonDown += OnPreviewMouseDown;
@@ -169,9 +189,6 @@ namespace Crest
             PreviewDragOver += (s, e) => _lastDragOver = DateTime.Now;
             PreviewDrop += (s, e) => _lastDragOver = DateTime.MinValue;
 
-            SettingsButton.Click += (s, e) => SelectTab("Settings");
-            SearchButton.Click += (s, e) => OpenSpotlight();
-            CloseButton.Click += (s, e) => { PinButton.IsChecked = false; Collapse(); };
             DockBorder.PreviewMouseWheel += (s, e) =>
             {
                 var keys = Tabs.Select(t => t.Key).ToList();
@@ -207,7 +224,7 @@ namespace Crest
             Win32.SetWindowLongPtr(_hwnd, Win32.GWL_EXSTYLE, new IntPtr(ex));
 
             RegisterHotkeys();
-            _tab = S.LastTab;
+            _tab = IsIslandPage(S.LastTab) ? S.LastTab : "Home";
             ApplySettings();
             StartServices();
             _envTimer.Start();
@@ -393,10 +410,7 @@ namespace Crest
             HudBar.Margin = new Thickness(2, RowH + Math.Round(2 * K), 2, 0);
 
             // The panel is laid out at 100% and scaled as a whole, so every size looks identical, just bigger or smaller.
-            ExpandedLayer.Width = BaseW - 36;
-            ExpandedLayer.Height = BaseH - 26;
-            ExpandedLayer.LayoutTransform = new ScaleTransform(KE, KE);
-            ExpandedLayer.Margin = new Thickness(0, Math.Round(12 * KE), 0, 0);
+            LayoutExpanded();
 
             try { Win32.SetWindowDisplayAffinity(_hwnd, S.HideFromCapture ? Win32.WDA_EXCLUDEFROMCAPTURE : Win32.WDA_NONE); } catch { }
             if (S.CapsLockHud) { if (!_capsTimer.IsEnabled) { _capsInit = false; _capsTimer.Start(); } } else _capsTimer.Stop();
@@ -412,6 +426,16 @@ namespace Crest
                 PositionWindow(CollapsedWindow);
                 UpdateCollapsed(true);
             }
+        }
+
+        /// <summary>The open panel is laid out at its base size and scaled as a whole.</summary>
+        void LayoutExpanded()
+        {
+            var b = PageBase(_tab);
+            ExpandedLayer.Width = b.Width - 24;
+            ExpandedLayer.Height = b.Height - 14;
+            ExpandedLayer.LayoutTransform = new ScaleTransform(KE, KE);
+            ExpandedLayer.Margin = new Thickness(0, Math.Round(7 * KE), 0, 0);
         }
 
         IntPtr TargetMonitor()
@@ -469,6 +493,7 @@ namespace Crest
 
         public void Expand(string? tab)
         {
+            if (tab != null && !IsIslandPage(tab)) { AppWindow.ShowPage(tab); return; }
             if (_hwnd == IntPtr.Zero) return;
             if (_userHidden) SetUserHidden(false);
             if (_hiddenFs) return;
@@ -564,7 +589,7 @@ namespace Crest
             _tabButtons.Clear();
             foreach (var (key, glyph, title, _) in Tabs)
             {
-                var rb = new RadioButton { Style = Ui.StyleRes("TabButton"), Content = glyph, GroupName = "notch-tabs", ToolTip = title };
+                var rb = new RadioButton { Style = Ui.StyleRes("TabButton"), Content = glyph, GroupName = "notch-tabs", ToolTip = title, Width = 26, Height = 26, FontSize = 12.5, Margin = new Thickness(0, 0, 2, 0) };
                 var k = key;
                 rb.Checked += (s, e) => { if (!_selecting) SelectTab(k); };
                 _tabButtons[key] = rb;
@@ -579,10 +604,12 @@ namespace Crest
 
         public void SelectTab(string key)
         {
-            if (!_tabButtons.ContainsKey(key) && !NonDock.Contains(key))
+            if (!IsIslandPage(key))
             {
-                if (AllTabs.Any(t => t.Key == key)) { S.HiddenTabs.Remove(key); SettingsStore.Save(); BuildTabs(); }
-                else key = "Home";
+                // Big features live in the Crest app window, not the island.
+                if (_expanded && PinButton.IsChecked != true) Collapse();
+                AppWindow.ShowPage(key);
+                return;
             }
             bool changed = key != _tab || TabHost.Content == null;
             var old = TabHost.Content as ITabView;
@@ -595,7 +622,7 @@ namespace Crest
             if (_tabButtons.TryGetValue(key, out var tabButton)) tabButton.IsChecked = true;
             else foreach (var b in _tabButtons.Values) b.IsChecked = false;
             _selecting = false;
-            DockPill.BeginAnimation(OpacityProperty, new DoubleAnimation(NonDock.Contains(key) ? 0 : 1, TimeSpan.FromMilliseconds(150)));
+            DockPill.BeginAnimation(OpacityProperty, new DoubleAnimation(_tabButtons.ContainsKey(key) ? 1 : 0, TimeSpan.FromMilliseconds(150)));
             if (!changed) return;
 
             if (_expanded) old?.OnDeactivated();
@@ -606,7 +633,8 @@ namespace Crest
                 _views[key] = view;
             }
             TabHost.Content = view;
-            if (_expanded) (view as ITabView)?.OnActivated();
+            LayoutExpanded();
+            if (_expanded) { (view as ITabView)?.OnActivated(); AnimateBody(ExpandedBody, ExpandedRadius, true); }
             UpdateHeader();
             MovePill(_expanded && S.TabAnimations);
 
@@ -644,19 +672,8 @@ namespace Crest
             }
         }
 
-        public void UpdateHeader()
-        {
-            var t = AllTabs.FirstOrDefault(x => x.Key == _tab);
-            if (t.Key == null) return;
-            HeaderGlyph.Text = t.Glyph;
-            HeaderTitle.Text = t.Title;
-            string sub = t.Sub;
-            if (t.Key == "Home") sub = DateTime.Now.ToString("dddd, d MMM", System.Globalization.CultureInfo.CurrentCulture);
-            else if (t.Key == "Clipboard") { int n = ClipboardService.Instance.Items.Count; sub = n == 1 ? "1 item" : $"{n} items"; }
-            else if (t.Key == "Weather") sub = S.City ?? "Set a location";
-            else if (t.Key == "Settings") { var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version; sub = v == null ? "Crest" : $"Crest {v.Major}.{v.Minor}.{v.Build}"; }
-            HeaderSub.Text = sub;
-        }
+        /// <summary>The island header has no title any more; kept for callers.</summary>
+        public void UpdateHeader() { }
 
         void ApplyShadow(bool on)
         {
@@ -669,7 +686,19 @@ namespace Crest
             };
         }
 
+        /// <summary>Compact views for the island.</summary>
         static FrameworkElement CreateView(string key) => key switch
+        {
+            "Home" => new IslandHome(),
+            "Shelf" => new TrayView(true, compact: true),
+            "Launch" => new TrayView(false, compact: true),
+            "Timers" => new IslandTimers(),
+            "Clipboard" => new IslandClipboard(),
+            _ => new SpotlightView(),
+        };
+
+        /// <summary>Full views for the Crest app window and floating widgets.</summary>
+        static FrameworkElement CreateFullView(string key) => key switch
         {
             "Home" => new HomeView(),
             "Shelf" => new TrayView(true),
@@ -687,7 +716,10 @@ namespace Crest
             "Assistant" => new AssistantView(),
             "Tools" => new ToolsView(),
             "Search" => new SpotlightView(),
-            _ => new SettingsView()
+            "Appearance" => new SettingsView("Appearance"),
+            "Island" => new SettingsView("Island"),
+            "General" => new SettingsView("General"),
+            _ => new SettingsView("Appearance")
         };
 
         // ================= input =================
@@ -1267,7 +1299,7 @@ namespace Crest
             FloatWindow.Open(tab, at);
         }
 
-        internal static FrameworkElement CreateViewFor(string key) => CreateView(key);
+        internal static FrameworkElement CreateViewFor(string key) => CreateFullView(key);
 
         void EqTick()
         {
@@ -1408,10 +1440,7 @@ namespace Crest
         void UpdateBattery()
         {
             var p = PowerService.Instance;
-            HeaderBattery.Visibility = p.HasBattery ? Visibility.Visible : Visibility.Collapsed;
-            HeaderBatteryText.Text = $"{p.Percent}%";
-            HeaderBatteryGlyph.Level = p.Percent;
-            HeaderBatteryGlyph.Charging = p.OnAc && p.Percent < 100;
+
         }
 
         void UpdatePrivacy()

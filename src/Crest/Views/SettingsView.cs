@@ -22,6 +22,7 @@ namespace Crest.Views
 
         void RenderUpdate()
         {
+            if (_updateBtn == null) return;
             if (UpdateService.Busy) { _updateBtn.IsEnabled = false; return; }
             _updateBtn.IsEnabled = true;
             if (UpdateService.Available)
@@ -58,8 +59,9 @@ namespace Crest.Views
             RenderUpdate();
         }
 
-        public SettingsView()
+        public SettingsView(string page = "All")
         {
+            _page = page;
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition());
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
@@ -75,28 +77,67 @@ namespace Crest.Views
         public void ScrollTo(double y) => (Content as ScrollViewer)?.ScrollToVerticalOffset(y);
         public void OnDeactivated() { }
 
+        /// <summary>Which settings page this view shows: Appearance | Island | General | All.</summary>
+        readonly string _page = "All";
+        bool On(string p) => _page == "All" || _page == p;
+
         void Build()
         {
-            ThemeSection();
-            EyesSection();
+            if (On("Appearance"))
+            {
+                ThemeSection(_left);
+                EyesSection(_left);
+                AppearanceSection(_right);
+            }
+            if (On("Island"))
+            {
+                IslandPagesSection(_left);
+                BehaviourSection(_left);
+                LiveSection(_right);
+            }
+            if (On("General"))
+            {
+                GeneralSections();
+            }
+        }
 
-            // ---- Appearance ----
-            var look = Section(_left, "Appearance");
+        void AppearanceSection(StackPanel col)
+        {
+            var look = Section(col, "Notch");
             Seg(look, "Style", new[] { ("Notch", "Notch"), ("Island", "Island") }, S.Style, v => S.Style = v);
             Seg(look, "Size", new[] { ("Small", "Small"), ("Medium", "Medium"), ("Large", "Large") }, S.Size, v => S.Size = v);
             Seg(look, "Visibility", new[] { ("Always", "Always"), ("Smart", "Smart"), ("Minimal", "Minimal"), ("Hidden", "Hidden") }, S.Visibility, v => S.Visibility = v,
-                "Smart tucks into a thin line over maximized apps · Hidden shows only events");
+                "Smart tucks into a thin line over maximized apps · Hidden shows only events", stacked: true);
             Seg(look, "Resting notch", new[] { ("None", "Clean"), ("Corners", "Time & battery") }, S.RestingInfo, v => S.RestingInfo = v);
             Toggle(look, "Outline", "Hairline around the notch", S.Outline, v => S.Outline = v);
-            Seg(look, "Shadow", new[] { ("None", "None"), ("Subtle", "Subtle"), ("Medium", "Medium"), ("Deep", "Deep") }, S.Shadow, v => S.Shadow = v, "Depth under the open notch");
+            Seg(look, "Shadow", new[] { ("None", "None"), ("Subtle", "Subtle"), ("Medium", "Medium"), ("Deep", "Deep") }, S.Shadow, v => S.Shadow = v, "Depth under the open notch", stacked: true);
             Seg(look, "Music colour", new[] { ("Album", "Album art"), ("Accent", "Accent"), ("Rainbow", "Rainbow") }, S.EqColor, v => S.EqColor = v);
             Toggle(look, "Tab animations", "Sliding pill and direction-aware transitions", S.TabAnimations, v => S.TabAnimations = v);
             Toggle(look, "OLED black", "Pure #000 with no outline or shadow, so it melts into the bezel", S.Oled, v => S.Oled = v);
             Toggle(look, "Camera cutout", "Draw a lens in the notch", S.CameraCutout, v => S.CameraCutout = v);
             SliderRow(look, "Horizontal offset", "Line the notch up with your webcam", -400, 400, S.NotchOffset, v => S.NotchOffset = (int)v, v => v == 0 ? "Centre" : $"{v:+0;-0} px");
+        }
 
-            // ---- Behaviour ----
-            var beh = Section(_left, "Behaviour");
+        void IslandPagesSection(StackPanel col)
+        {
+            var pages = Section(col, "Island pages");
+            pages.Children.Add(new TextBlock { Text = "The island stays small and only shows these. Everything else lives here in the Crest app.", Style = Ui.StyleRes("Caption"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 4) });
+            foreach (var (key, glyph, title, sub) in NotchWindow.IslandTabs)
+            {
+                var k = key;
+                Toggle(pages, title, sub, key == "Home" || S.IslandPages.Contains(key), on =>
+                {
+                    if (on && !S.IslandPages.Contains(k)) S.IslandPages.Add(k);
+                    else if (!on) S.IslandPages.Remove(k);
+                    if (!S.IslandPages.Contains("Home")) S.IslandPages.Insert(0, "Home");
+                    S.IslandPages = NotchWindow.IslandTabs.Select(t => t.Key).Where(S.IslandPages.Contains).ToList();
+                });
+            }
+        }
+
+        void BehaviourSection(StackPanel col)
+        {
+            var beh = Section(col, "Behaviour");
             Toggle(beh, "Open on hover", "Otherwise click the notch", S.ExpandOnHover, v => S.ExpandOnHover = v);
             Seg(beh, "Hover delay", new[] { ("60", "Instant"), ("150", "Normal"), ("350", "Relaxed") }, S.HoverDelayMs.ToString(),
                 v => S.HoverDelayMs = int.Parse(v));
@@ -104,9 +145,11 @@ namespace Crest.Views
             Toggle(beh, "Hide from screen sharing", "Invisible in screenshots, recordings and calls", S.HideFromCapture, v => S.HideFromCapture = v);
             Seg(beh, "Show on", new[] { ("Primary", "Main display"), ("Cursor", "Display with cursor") }, S.Display, v => S.Display = v);
             _startup = Toggle(beh, "Start with Windows", null, Startup.Enabled, v => Startup.Enabled = v, saves: false);
+        }
 
-            // ---- Live activities ----
-            var live = Section(_right, "Live activities");
+        void LiveSection(StackPanel col)
+        {
+            var live = Section(col, "Live activities");
             Toggle(live, "Now playing", "Album art and equalizer while music plays", S.MediaActivity, v => S.MediaActivity = v);
             Toggle(live, "Timers", "Countdown in the notch while a timer runs", S.TimerActivity, v => S.TimerActivity = v);
             Toggle(live, "Volume", "Show volume changes in the notch", S.VolumeHud, v => S.VolumeHud = v);
@@ -120,42 +163,29 @@ namespace Crest.Views
             Toggle(live, "Focus Assist / Do Not Disturb", "Show a pill when Windows notifications go quiet", S.FocusAssistHud, v => S.FocusAssistHud = v);
             Toggle(live, "Mirror notifications & calls", NotificationMirror.HasIdentity ? "Windows notifications and calls as pills · " + NotificationMirror.Status : "Needs the packaged (MSIX) build of Crest", S.MirrorNotifications, v => { S.MirrorNotifications = v; if (v) NotificationMirror.Init(Dispatcher); else NotificationMirror.Stop(); });
             Toggle(live, "Sounds", "Chime when timers finish", S.Sounds, v => S.Sounds = v);
+        }
 
-            // ---- Clipboard ----
-            var clip = Section(_right, "Clipboard");
+        void GeneralSections()
+        {
+            var clip = Section(_left, "Clipboard");
             Toggle(clip, "Clipboard history", "Skips anything password managers mark private", S.ClipboardHistory, v => S.ClipboardHistory = v);
 
-            // ---- Modules ----
-            var mods = Section(_left, "Modules in the dock");
-            foreach (var (key, glyph, title, sub) in NotchWindow.AllTabs)
-            {
-                if (key == "Home" || key == "Settings") continue;
-                var k = key;
-                Toggle(mods, title, string.IsNullOrEmpty(sub) ? null : sub, !S.HiddenTabs.Contains(key), on =>
-                {
-                    if (on) S.HiddenTabs.Remove(k);
-                    else if (!S.HiddenTabs.Contains(k)) S.HiddenTabs.Add(k);
-                });
-            }
-
-            // ---- Backup ----
-            var backup = Section(_right, "Backup");
+            var backup = Section(_left, "Backup");
             Info(backup, "Everything stays on this PC", "%AppData%\\Crest");
             var brow = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
             brow.Children.Add(LinkButton("Export backup…", ExportBackup));
             brow.Children.Add(LinkButton("Import backup…", ImportBackup));
             backup.Children.Add(brow);
 
-            // ---- Shortcuts & about ----
             var about = Section(_left, "Shortcuts");
-            Info(about, "Ctrl + Alt + N", "Open / close the notch");
-            Info(about, "Ctrl + Alt + V", "Clipboard history");
+            Info(about, "Ctrl + Alt + N", "Open / close the island");
+            Info(about, "Ctrl + Alt + V", "Clipboard in the island");
             Info(about, "Ctrl + Alt + P", "Start / pause Pomodoro");
-            Info(about, "Ctrl + Alt + Space", "Search apps, files, settings, math and the web");
+            Info(about, "Ctrl + Alt + Space", "Search apps, files, settings, math, web");
             Info(about, "Esc", "Close");
             Info(about, "Swipe a live activity sideways", "Hide it (it keeps running)");
-            Info(about, "Pull the notch down", "Pop the tab out as a floating widget");
-            Info(about, "Live Activity API", "Named pipe \\\\.\\pipe\\CrestLiveActivity, or crest.exe --activity \"{json}\"");
+            Info(about, "Pull the island down", "Pop the page out as a floating widget");
+            Info(about, "Live Activity API", "\\\\.\\pipe\\CrestLiveActivity · crest.exe --activity");
 
             var info = Section(_right, "About & updates");
             Info(info, "Crest " + UpdateService.CurrentText, "Open source · MIT License");
@@ -174,7 +204,7 @@ namespace Crest.Views
             links.Children.Add(LinkButton("GitHub", () => Ui.Open("https://github.com/rishii-hub/crest")));
             links.Children.Add(LinkButton("Report a bug", () => Ui.Open("https://github.com/rishii-hub/crest/issues/new")));
             links.Children.Add(LinkButton("Data folder", () => { System.IO.Directory.CreateDirectory(Storage.Dir); Ui.Open(Storage.Dir); }));
-            links.Children.Add(LinkButton("Quit", () => Application.Current.Shutdown()));
+            links.Children.Add(LinkButton("Quit Crest", () => Application.Current.Shutdown()));
             info.Children.Add(links);
         }
 
@@ -229,9 +259,9 @@ namespace Crest.Views
         }
 
         // ---------- theme ----------
-        void ThemeSection()
+        void ThemeSection(StackPanel col)
         {
-            var t = Section(_left, "Theme");
+            var t = Section(col, "Theme");
             var wrap = new WrapPanel { Margin = new Thickness(0, 8, 0, 2) };
             foreach (var p in ThemeService.Presets) wrap.Children.Add(ThemeTile(p));
             t.Children.Add(wrap);
@@ -245,9 +275,9 @@ namespace Crest.Views
             FontRow(t);
         }
 
-        void EyesSection()
+        void EyesSection(StackPanel col)
         {
-            var t = Section(_left, "Eyes");
+            var t = Section(col, "Eyes");
             t.Children.Add(new TextBlock { Text = "The resting notch watches your cursor, blinks, glances around when you're still and dozes off when you're away. Live activities take over while they run.", Style = Ui.StyleRes("Caption"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 8) });
             var wrap = new WrapPanel();
             foreach (var kind in new[] { "Off" }.Concat(NotchEyes.Styles))

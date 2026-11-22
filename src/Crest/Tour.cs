@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
@@ -45,7 +46,7 @@ namespace Crest
                     await Task.Delay(250);
                 }
 
-                s.HiddenTabs.Clear();
+                s.IslandPages = IslandTabs.Select(t => t.Key).ToList();
                 s.Alarms.Add(new AlarmItem { Hour = 7, Minute = 30, Label = "Gym", Days = 0x3E });
                 s.Alarms.Add(new AlarmItem { Hour = 9, Minute = 0, Label = "Standup", Days = 0x3E, Enabled = false });
                 s.Automations.Add(new AutomationItem { Name = "Backup notes", Path = @"C:\Scripts\backup.ps1" });
@@ -55,20 +56,42 @@ namespace Crest
                 Expand("Home");
                 PinButton.IsChecked = true;
                 await Task.Delay(1500);
+                // The island's own compact pages
                 foreach (var (key, _, _, _) in Tabs)
                 {
-                    if (key == "Timers") { TimerService.Instance.PomoToggle(); }
-                    if (key == "Tools") LanDropService.Start();
                     SelectTab(key);
-                    await Task.Delay(key == "Weather" || key == "Units" || key == "AI" ? 3000 : 1300);
-                    Capture("tab-" + key.ToLowerInvariant());
-                    if (key == "Timers") { TimerService.Instance.PomoToggle(); TimerService.Instance.PomoReset(); }
+                    await Task.Delay(1300);
+                    Capture("island-" + key.ToLowerInvariant());
                 }
+                PinButton.IsChecked = false;
+                Collapse();
+                await Task.Delay(700);
 
-                // Alarms panel inside Timers
-                SelectTab("Timers");
-                if (_views.TryGetValue("Timers", out var tv) && tv is Views.TimersView timers) timers.AlarmMode.IsChecked = true;
-                await Task.Delay(900); Capture("tab-alarms");
+                // The Crest app window: every feature and settings page
+                AppWindow.ShowPage("Home");
+                var app = AppWindow.Current!;
+                app.Left = 40; app.Top = 60; app.Width = 1060; app.Height = 700;
+                await Task.Delay(1500);
+                foreach (var page in AppWindow.Pages)
+                {
+                    if (page.Key == "Tools") LanDropService.Start();
+                    if (page.Key == "Timers") TimerService.Instance.PomoToggle();
+                    app.Select(page.Key);
+                    await Task.Delay(page.Key is "Weather" or "Units" or "AI" ? 2600 : 1100);
+                    app.CaptureTo(Path.Combine(_tourDir, "app-" + page.Key.ToLowerInvariant() + ".png"));
+                    if (page.Key == "Timers")
+                    {
+                        TimerService.Instance.PomoToggle(); TimerService.Instance.PomoReset();
+                        if (app.View("Timers") is Views.TimersView timers)
+                        {
+                            timers.AlarmMode.IsChecked = true;
+                            await Task.Delay(700);
+                            app.CaptureTo(Path.Combine(_tourDir, "app-alarms.png"));
+                        }
+                    }
+                }
+                app.Hide();
+                await Task.Delay(500);
 
                 // Spotlight hub: math, then apps/settings
                 PinButton.IsChecked = false;
@@ -234,12 +257,15 @@ namespace Crest
                     await Task.Delay(1600); Capture("theme-" + theme.ToLowerInvariant());
                     if (theme == "Light" || theme == "Vivid")
                     {
-                        SelectTab("Settings");
-                        await Task.Delay(1200); Capture("theme-" + theme.ToLowerInvariant() + "-settings");
-                        if (_views.TryGetValue("Settings", out var sv2) && sv2 is Views.SettingsView settings) settings.ScrollTo(260);
-                        await Task.Delay(500); Capture("theme-" + theme.ToLowerInvariant() + "-settings-2");
                         SelectTab("Timers");
                         await Task.Delay(1000); Capture("theme-" + theme.ToLowerInvariant() + "-timers");
+                        AppWindow.ShowPage("Appearance");
+                        await Task.Delay(1400);
+                        AppWindow.Current!.CaptureTo(Path.Combine(_tourDir, "theme-" + theme.ToLowerInvariant() + "-app.png"));
+                        AppWindow.Current!.Select("Home");
+                        await Task.Delay(1200);
+                        AppWindow.Current!.CaptureTo(Path.Combine(_tourDir, "theme-" + theme.ToLowerInvariant() + "-app-home.png"));
+                        AppWindow.Current!.Hide();
                     }
                     PinButton.IsChecked = false;
                     Collapse();
@@ -273,7 +299,7 @@ namespace Crest
                 }
                 using (var fs = File.Create(gif)) enc.Save(fs);
                 SettingsStore.Update(x => { ThemeService.Choose("Custom"); x.CustomPanel = "#1A0B2E"; x.Backdrop = "Media"; x.BgPath = gif; x.BgDim = 25; });
-                Expand("Clock"); PinButton.IsChecked = true;
+                Expand("Home"); PinButton.IsChecked = true;
                 await Task.Delay(1800); Capture("theme-gif");
                 await Task.Delay(350); Capture("theme-gif-2");
                 PinButton.IsChecked = false; Collapse();

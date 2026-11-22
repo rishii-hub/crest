@@ -20,7 +20,13 @@ namespace Crest.Core
         public int NotchOffset { get; set; } = 0;           // DIP offset from screen centre to line up with a physical cutout
         public double? FloatLeft { get; set; }
         public double? FloatTop { get; set; }
-        public List<string> HiddenTabs { get; set; } = new List<string> { "Message" };
+        public List<string> HiddenTabs { get; set; } = new List<string> { "Message" };   // legacy
+        public List<string> IslandPages { get; set; } = new List<string> { "Home", "Shelf", "Timers" };
+        public string AppPage { get; set; } = "Home";
+        public double? AppLeft { get; set; }
+        public double? AppTop { get; set; }
+        public double AppWidth { get; set; } = 1060;
+        public double AppHeight { get; set; } = 700;
         public string Accent { get; set; } = "#FF9F0A";
 
         // Themes

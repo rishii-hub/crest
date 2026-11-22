@@ -16,7 +16,7 @@ namespace Crest.Views
     /// </summary>
     public sealed class TrayView : UserControl, ITabView
     {
-        readonly bool _shelf;
+        readonly bool _shelf, _compact;
         readonly TrayStore _store;
         readonly WrapPanel _tiles = new WrapPanel();
         readonly Border _drop;
@@ -26,9 +26,10 @@ namespace Crest.Views
         Point _downPos;
         TrayItem? _downItem;
 
-        public TrayView(bool shelf)
+        public TrayView(bool shelf, bool compact = false)
         {
             _shelf = shelf;
+            _compact = compact;
             _store = shelf ? TrayStore.Shelf : TrayStore.Launch;
             _store.EnsureLoaded();
             AllowDrop = true;
@@ -65,16 +66,41 @@ namespace Crest.Views
             _count.Style = Ui.StyleRes("Caption");
             titles.Children.Add(_count);
             header.Children.Add(titles);
+            if (compact)
+            {
+                // island: a single row of tiles with a slim column of icon buttons on the right
+                header.Visibility = Visibility.Collapsed;
+                var tools = new StackPanel { Orientation = Orientation.Vertical, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
+                foreach (var b in new[] { paste, choose, _dragAll, _clear })
+                {
+                    right.Children.Remove(b);
+                    if (b == _dragAll && !shelf) continue;
+                    b.Style = Ui.StyleRes("IconButton");
+                    b.Width = b.Height = 26;
+                    b.FontSize = 11.5;
+                    b.Margin = new Thickness(0, 1, 0, 1);
+                    b.ToolTip = b == paste ? "Paste from clipboard" : b == choose ? (shelf ? "Choose files" : "Add app") : b == _dragAll ? "Drag everything out" : "Clear";
+                    b.Content = b == paste ? Glyphs.Paste : b == choose ? Glyphs.Add : b == _dragAll ? Glyphs.OpenFolder : Glyphs.Delete;
+                    tools.Children.Add(b);
+                }
+                Grid.SetRow(tools, 2);
+                Grid.SetColumn(tools, 1);
+                root.ColumnDefinitions.Add(new ColumnDefinition());
+                root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                root.Children.Add(tools);
+            }
             root.Children.Add(header);
 
             // drop area + tiles
-            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = _tiles };
+            var scroll = compact
+                ? new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, Content = _tiles, PanningMode = PanningMode.HorizontalOnly }
+                : new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = _tiles };
             var hint = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
-            hint.Children.Add(new TextBlock { Text = shelf ? Glyphs.Folder : Glyphs.Apps, Style = Ui.StyleRes("Icon"), FontSize = 28, Foreground = Ui.Res("Text3Brush") });
+            hint.Children.Add(new TextBlock { Text = shelf ? Glyphs.Folder : Glyphs.Apps, Style = Ui.StyleRes("Icon"), FontSize = compact ? 20 : 28, Foreground = Ui.Res("Text3Brush") });
             hint.Children.Add(new TextBlock
             {
                 Text = shelf ? "Drop files, folders or text here" : "Drop apps, shortcuts, folders or links here",
-                Margin = new Thickness(0, 10, 0, 2), FontSize = 13.5, HorizontalAlignment = HorizontalAlignment.Center
+                Margin = new Thickness(0, compact ? 6 : 10, 0, 2), FontSize = compact ? 12.5 : 13.5, HorizontalAlignment = HorizontalAlignment.Center
             });
             hint.Children.Add(new TextBlock
             {
@@ -86,17 +112,17 @@ namespace Crest.Views
             layer.Children.Add(scroll);
             _drop = new Border
             {
-                CornerRadius = new CornerRadius(18), Background = Ui.Res("CardBrush"), BorderThickness = new Thickness(1.5),
-                BorderBrush = Brushes.Transparent, Padding = new Thickness(10), Child = layer
+                CornerRadius = new CornerRadius(compact ? 16 : 18), Background = Ui.Res("CardBrush"), BorderThickness = new Thickness(1.5),
+                BorderBrush = Brushes.Transparent, Padding = new Thickness(compact ? 6 : 10), Child = layer
             };
             Grid.SetRow(_drop, 2);
-            if (!shelf) root.Children.Add(BuildSearch());
+            if (!shelf && !compact) root.Children.Add(BuildSearch());
             root.Children.Add(_drop);
             hint.Visibility = Visibility.Visible;
             _store.Items.CollectionChanged += (s, e) => { Rebuild(); hint.Visibility = _store.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed; };
             hint.Visibility = _store.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
-            if (!shelf)
+            if (!shelf && !compact)
             {
                 _url = new TextBox { Style = Ui.StyleRes("Field"), Tag = "Paste a link and press Enter to pin it", Margin = new Thickness(0, 8, 0, 0) };
                 _url.KeyDown += (s, e) =>
@@ -246,22 +272,23 @@ namespace Crest.Views
 
         FrameworkElement MakeTile(TrayItem item)
         {
-            var g = new Grid { Width = 96, Height = 100, Margin = new Thickness(4), Background = Brushes.Transparent, ToolTip = item.Value.Length > 300 ? item.Value.Substring(0, 300) + "…" : item.Value };
+            double tw = _compact ? 76 : 96, th = _compact ? 86 : 100, isz = _compact ? 38 : 46;
+            var g = new Grid { Width = tw, Height = th, Margin = new Thickness(_compact ? 2 : 4), Background = Brushes.Transparent, ToolTip = item.Value.Length > 300 ? item.Value.Substring(0, 300) + "…" : item.Value };
             var bg = new Border { CornerRadius = new CornerRadius(14), Background = Ui.Res("Card2Brush"), Opacity = 0 };
             g.Children.Add(bg);
 
-            var stack = new StackPanel { Margin = new Thickness(6, 10, 6, 6) };
+            var stack = new StackPanel { Margin = new Thickness(5, _compact ? 7 : 10, 5, 5) };
             var icon = item.Icon;
-            if (icon != null) stack.Children.Add(new Image { Source = icon, Width = 46, Height = 46, Stretch = Stretch.Uniform });
+            if (icon != null) stack.Children.Add(new Image { Source = icon, Width = isz, Height = isz, Stretch = Stretch.Uniform });
             else stack.Children.Add(new Border
             {
-                Width = 46, Height = 46, CornerRadius = new CornerRadius(12), Background = Ui.Res("HoverBrush"),
+                Width = isz, Height = isz, CornerRadius = new CornerRadius(12), Background = Ui.Res("HoverBrush"),
                 Child = new TextBlock { Text = item.Glyph, Style = Ui.StyleRes("Icon"), FontSize = 20 }
             });
             stack.Children.Add(new TextBlock
             {
-                Text = item.Name, FontSize = 11.5, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap,
-                TextTrimming = TextTrimming.CharacterEllipsis, MaxHeight = 32, Margin = new Thickness(0, 7, 0, 0)
+                Text = item.Name, FontSize = _compact ? 10.5 : 11.5, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap,
+                TextTrimming = TextTrimming.CharacterEllipsis, MaxHeight = _compact ? 28 : 32, Margin = new Thickness(0, _compact ? 5 : 7, 0, 0)
             });
             g.Children.Add(stack);
 
