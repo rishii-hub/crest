@@ -15,6 +15,46 @@ namespace Crest.Views
         static AppSettings S => SettingsStore.Current;
         readonly StackPanel _left = new StackPanel(), _right = new StackPanel();
         CheckBox? _startup;
+        Button _updateBtn = null!;
+        TextBlock _updateStatus = null!;
+
+        void RenderUpdate()
+        {
+            if (UpdateService.Busy) { _updateBtn.IsEnabled = false; return; }
+            _updateBtn.IsEnabled = true;
+            if (UpdateService.Available)
+            {
+                _updateBtn.Content = $"Install {UpdateService.LatestTag}";
+                _updateBtn.SetResourceReference(BackgroundProperty, "AccentBrush");
+                _updateBtn.Foreground = Brushes.Black;
+                _updateStatus.Text = $"{UpdateService.LatestTag} is available. Crest restarts by itself after installing.";
+            }
+            else
+            {
+                _updateBtn.Content = "Check for updates";
+                _updateBtn.Background = Ui.Res("Card2Brush");
+                _updateBtn.Foreground = Ui.Res("TextBrush");
+                var last = S.LastUpdateCheck;
+                _updateStatus.Text = UpdateService.Latest != null ? "You're on the latest version." : last.HasValue ? $"Last checked {Ui.Ago(last.Value)}" : "Not checked yet";
+            }
+        }
+
+        async System.Threading.Tasks.Task UpdateClicked()
+        {
+            if (UpdateService.Available)
+            {
+                _updateBtn.IsEnabled = false;
+                var progress = new Progress<double>(p => _updateStatus.Text = $"Downloading… {p * 100:0}%");
+                var err = await UpdateService.InstallAsync(progress);
+                if (err != null) { _updateStatus.Text = err; _updateBtn.IsEnabled = true; }
+                return;
+            }
+            _updateStatus.Text = "Checking…";
+            _updateBtn.IsEnabled = false;
+            bool found = await UpdateService.CheckAsync();
+            if (!found && UpdateService.Latest == null) _updateStatus.Text = "Couldn't reach GitHub. Check your connection.";
+            RenderUpdate();
+        }
 
         public SettingsView()
         {
@@ -103,9 +143,19 @@ namespace Crest.Views
             Info(about, "Ctrl + Alt + P", "Start / pause Pomodoro");
             Info(about, "Esc", "Close");
 
-            var info = Section(_right, "About");
-            var ver = Assembly.GetExecutingAssembly().GetName().Version;
-            Info(info, "Crest " + (ver == null ? "" : $"{ver.Major}.{ver.Minor}.{ver.Build}"), "Open source · MIT License");
+            var info = Section(_right, "About & updates");
+            Info(info, "Crest " + UpdateService.CurrentText, "Open source · MIT License");
+            Toggle(info, "Check for updates automatically", "One request to GitHub every 12 hours", S.AutoUpdateCheck, v => S.AutoUpdateCheck = v);
+            var upRow = new DockPanel { Margin = new Thickness(0, 6, 0, 6) };
+            _updateBtn = new Button { Style = Ui.StyleRes("Pill"), Content = "Check for updates", Margin = new Thickness(10, 0, 0, 0) };
+            _updateBtn.Click += async (s, e) => await UpdateClicked();
+            DockPanel.SetDock(_updateBtn, Dock.Right);
+            upRow.Children.Add(_updateBtn);
+            _updateStatus = new TextBlock { FontSize = 11.5, Foreground = Ui.Res("Text2Brush"), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
+            upRow.Children.Add(_updateStatus);
+            info.Children.Add(upRow);
+            UpdateService.Changed += () => Dispatcher.BeginInvoke(new Action(RenderUpdate));
+            RenderUpdate();
             var links = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
             links.Children.Add(LinkButton("GitHub", () => Ui.Open("https://github.com/rishii-hub/crest")));
             links.Children.Add(LinkButton("Report a bug", () => Ui.Open("https://github.com/rishii-hub/crest/issues/new")));

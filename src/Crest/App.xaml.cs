@@ -50,6 +50,9 @@ namespace Crest
                 Dispatcher.BeginInvoke(new Action(() => notch.Expand("Home"))), null, -1, false);
 
             bool startup = Array.IndexOf(e.Args, "--startup") >= 0;
+            UpdateService.Start(Dispatcher);
+            if (Array.IndexOf(e.Args, "--updated") >= 0)
+                Ui.Later(1200, () => notch.ShowToast(new Toast { Kind = "updated", Glyph = Glyphs.Check, GlyphBrush = Ui.Res("GreenBrush"), Title = "Crest updated", Value = "v" + UpdateService.CurrentText, Duration = TimeSpan.FromSeconds(3) }));
             int tour = Array.IndexOf(e.Args, "--tour");
             if (tour >= 0)
             {
@@ -63,7 +66,7 @@ namespace Crest
                 SettingsStore.Save();
                 Ui.Later(900, notch.Welcome);
             }
-            else if (!startup)
+            else if (!startup && Array.IndexOf(e.Args, "--updated") < 0 && Array.IndexOf(e.Args, "--restart") < 0)
             {
                 Ui.Later(600, () => notch.ShowToast(new Toast { Kind = "hello", Glyph = Glyphs.Check, GlyphBrush = Ui.Res("GreenBrush"), Title = "Crest is running", Value = "Ctrl+Alt+N", Duration = TimeSpan.FromSeconds(2) }));
             }

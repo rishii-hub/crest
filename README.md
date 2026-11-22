@@ -81,12 +81,14 @@ Live activities: <img src="docs/screenshots/live-charging.png" height="70"/> <im
 2. Run it. Windows SmartScreen may warn because the exe isn't code-signed. Click **More info → Run anyway**.
 3. Optional: turn on *Settings → Start with Windows*.
 
+**Updates:** Crest checks GitHub for new releases (you can turn this off). When one is out, the notch says so. Install it from *Settings → About & updates* and Crest swaps itself and restarts.
+
 Settings and data are stored in `%AppData%\Crest`. To uninstall, quit from the tray, delete the exe, and delete that folder.
 
 ## Privacy
 - Nothing leaves your PC except weather requests to Open-Meteo, and only after you set a location.
 - Clipboard history stays local. Images are kept in memory only, unless you pin them.
-- No analytics, no accounts, no auto-updater phoning home.
+- No analytics and no accounts. The update check is a single request to GitHub's public API, and you can switch it off.
 
 ## Known limitations
 - Windows doesn't let apps reserve screen space for a notch, so a maximized window's top-centre pixels sit under it. Use **Thin line** idle mode or **Island** style if that bothers you.

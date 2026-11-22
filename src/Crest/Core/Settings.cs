@@ -78,6 +78,11 @@ namespace Crest.Core
         // UI state
         public string LastTab { get; set; } = "Home";
         public bool FirstRun { get; set; } = true;
+
+        // Updates
+        public bool AutoUpdateCheck { get; set; } = true;
+        public DateTime? LastUpdateCheck { get; set; }
+        public string NotifiedVersion { get; set; } = "";
     }
 
     public static class SettingsStore

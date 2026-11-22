@@ -218,6 +218,13 @@ namespace Crest
             Safe("screentime", () => ScreenTimeService.Instance.Init(Dispatcher));
             ScreenTimeService.Instance.LimitReached += m => ShowToast(new Toast { Kind = "limit", Glyph = "⏳", Emoji = true, Title = "Screen time limit", Value = ScreenTimeService.Format(m * 60), ValueBrush = Ui.Res("OrangeBrush"), Duration = TimeSpan.FromSeconds(4) });
             ClipboardService.Instance.Copied += OnCopied;
+            UpdateService.Changed += () =>
+            {
+                if (!UpdateService.Available || UpdateService.Busy || S.NotifiedVersion == UpdateService.LatestTag) return;
+                S.NotifiedVersion = UpdateService.LatestTag ?? "";
+                SettingsStore.Save();
+                ShowToast(new Toast { Kind = "update", Glyph = Glyphs.Download, GlyphBrush = Ui.Res("BlueBrush"), Title = "Update available", Value = UpdateService.LatestTag, ValueBrush = Ui.Res("BlueBrush"), Duration = TimeSpan.FromSeconds(5) });
+            };
             PowerService.Instance.Full += () => { if (S.BatteryAlerts) ShowToast(new Toast { Kind = "power", Title = "Fully charged", Value = "100%", ValueBrush = Ui.Res("GreenBrush"), Battery = 100, Charging = false, Duration = TimeSpan.FromSeconds(2.6) }); };
             Safe("stores", () => { NotesStore.Load(); TrayStore.Shelf.EnsureLoaded(); TrayStore.Launch.EnsureLoaded(); });
             UpdateBattery();
