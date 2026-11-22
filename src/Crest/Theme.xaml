@@ -466,6 +466,12 @@
     </Style.Triggers>
   </Style>
 
+  <!-- Touch / pen: pan scroll views with a finger -->
+  <Style TargetType="ScrollViewer">
+    <Setter Property="PanningMode" Value="VerticalFirst"/>
+    <Setter Property="PanningDeceleration" Value="0.003"/>
+  </Style>
+
   <Style TargetType="ToolTip">
     <Setter Property="Foreground" Value="White"/>
     <Setter Property="FontSize" Value="12"/>

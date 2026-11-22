@@ -86,6 +86,9 @@ namespace Crest.Views
             Seg(look, "Shadow", new[] { ("None", "None"), ("Subtle", "Subtle"), ("Medium", "Medium"), ("Deep", "Deep") }, S.Shadow, v => S.Shadow = v, "Depth under the open notch");
             Seg(look, "Music colour", new[] { ("Album", "Album art"), ("Accent", "Accent"), ("Rainbow", "Rainbow") }, S.EqColor, v => S.EqColor = v);
             Toggle(look, "Tab animations", "Sliding pill and direction-aware transitions", S.TabAnimations, v => S.TabAnimations = v);
+            Toggle(look, "OLED black", "Pure #000 with no outline or shadow, so it melts into the bezel", S.Oled, v => S.Oled = v);
+            Toggle(look, "Camera cutout", "Draw a lens in the notch", S.CameraCutout, v => S.CameraCutout = v);
+            SliderRow(look, "Horizontal offset", "Line the notch up with your webcam", -400, 400, S.NotchOffset, v => S.NotchOffset = (int)v, v => v == 0 ? "Centre" : $"{v:+0;-0} px");
 
             // ---- Behaviour ----
             var beh = Section(_left, "Behaviour");
@@ -142,6 +145,8 @@ namespace Crest.Views
             Info(about, "Ctrl + Alt + V", "Clipboard history");
             Info(about, "Ctrl + Alt + P", "Start / pause Pomodoro");
             Info(about, "Esc", "Close");
+            Info(about, "Swipe a live activity sideways", "Hide it (it keeps running)");
+            Info(about, "Pull the notch down", "Pop the tab out as a floating widget");
 
             var info = Section(_right, "About & updates");
             Info(info, "Crest " + UpdateService.CurrentText, "Open source · MIT License");
@@ -284,6 +289,22 @@ namespace Crest.Views
             DockPanel.SetDock(swatches, Dock.Right);
             row.Children.Add(swatches);
             row.Children.Add(Labels("Accent", null));
+            host.Children.Add(row);
+        }
+
+        static void SliderRow(StackPanel host, string title, string? sub, double min, double max, double value, Action<double> set, Func<double, string> fmt)
+        {
+            var row = new DockPanel { Margin = new Thickness(0, 6, 0, 6) };
+            var label = new TextBlock { FontSize = 11.5, Foreground = Ui.Res("Text2Brush"), Width = 52, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Text = fmt(value) };
+            var slider = new Slider { Style = Ui.StyleRes("Thin"), Minimum = min, Maximum = max, Value = value, Width = 150, Margin = new Thickness(12, 0, 6, 0), IsSnapToTickEnabled = true, TickFrequency = 1 };
+            var save = new Debouncer(TimeSpan.FromMilliseconds(120), () => Changed(true));
+            slider.ValueChanged += (s, e) => { set(Math.Round(slider.Value)); label.Text = fmt(Math.Round(slider.Value)); save.Trigger(); };
+            slider.MouseDoubleClick += (s, e) => slider.Value = 0;
+            DockPanel.SetDock(label, Dock.Right);
+            DockPanel.SetDock(slider, Dock.Right);
+            row.Children.Add(label);
+            row.Children.Add(slider);
+            row.Children.Add(Labels(title, sub));
             host.Children.Add(row);
         }
 

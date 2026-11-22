@@ -45,7 +45,7 @@ namespace Crest
         public static NotchWindow? Instance { get; private set; }
         static AppSettings S => SettingsStore.Current;
 
-        enum Mode { Idle, Media, Timer, Toast, Hud }
+        enum Mode { Idle, Media, Activity, Toast, Hud }
 
         public static readonly (string Key, string Glyph, string Title, string Sub)[] AllTabs =
         {
@@ -109,7 +109,7 @@ namespace Crest
         const double BaseW = 744, BaseH = 432;
         Size ExpandedBody => new Size(Math.Round(BaseW * KE), Math.Round(BaseH * KE));
         double ExpandedRadius => (Island ? 30 : 26) * KE;
-        Size CollapsedWindow => new Size(Math.Round(360 * K) + 2 * Shoulder + 40, Math.Round(56 * K) + TopGap + 14);
+        Size CollapsedWindow => new Size(Math.Round(400 * K) + 2 * Shoulder + 40 + 2 * (RowH + 18), Math.Round(56 * K) + Math.Max(TopGap, 5) + 14);
         Size ExpandedWindow => new Size(ExpandedBody.Width + 2 * Shoulder + 40, ExpandedBody.Height + TopGap + 30);
 
         public bool IsExpanded => _expanded;
@@ -142,8 +142,11 @@ namespace Crest
             HoverZone.MouseEnter += (s, e) => OnHoverEnter();
             Notch.MouseLeave += (s, e) => { if (!_expanded) _hoverTimer.Stop(); };
             HoverZone.MouseLeave += (s, e) => { if (!_expanded) _hoverTimer.Stop(); };
-            Notch.MouseLeftButtonUp += OnCollapsedClick;
             HoverZone.MouseLeftButtonUp += OnCollapsedClick;
+            HookGestures(Notch);
+            HookGestures(Bubble);
+            PopOutButton.Click += (s, e) => PopOut(_tab, true);
+            HookHeaderPull();
 
             PreviewMouseLeftButtonDown += OnPreviewMouseDown;
             PreviewMouseWheel += OnWheel;
@@ -218,7 +221,10 @@ namespace Crest
             Safe("clipboard", () => ClipboardService.Instance.Init(_source!));
             Safe("timers", () => TimerService.Instance.Init(Dispatcher));
             TimerService.Instance.StateChanged += () => UpdateCollapsed();
-            TimerService.Instance.Tick += () => { if (_mode == Mode.Timer) RefreshActivityContent(); };
+            TimerService.Instance.Tick += () => { if (_mode == Mode.Activity && _primary?.Id == "timer") RefreshActivityContent(); if (_secondary?.Id == "timer") RenderBubble(); };
+            ActivityHub.Register(TimerActivities);
+            ActivityHub.Register(MediaActivities);
+            ActivityHub.Changed += () => UpdateCollapsed();
             TimerService.Instance.Alert += OnTimerAlert;
             Safe("screentime", () => ScreenTimeService.Instance.Init(Dispatcher));
             ScreenTimeService.Instance.LimitReached += m => ShowToast(new Toast { Kind = "limit", Glyph = "⏳", Emoji = true, Title = "Screen time limit", Value = ScreenTimeService.Format(m * 60), ValueBrush = Ui.Res("OrangeBrush"), Duration = TimeSpan.FromSeconds(4) });
@@ -263,6 +269,13 @@ namespace Crest
 
         IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
+            if (msg == 0x020E && !_expanded) // WM_MOUSEHWHEEL: two-finger horizontal swipe on a trackpad
+            {
+                int delta = (short)((wParam.ToInt64() >> 16) & 0xFFFF);
+                var target = IsCursorOver(Bubble, 2) && Bubble.IsVisible ? (FrameworkElement)Bubble : IsCursorOver(Notch, 4) ? Notch : null;
+                if (target != null) { HorizontalSwipe(target, delta); handled = true; }
+                return IntPtr.Zero;
+            }
             if (msg == Win32.WM_HOTKEY)
             {
                 switch (wParam.ToInt32())
@@ -289,7 +302,11 @@ namespace Crest
 
             Shape.IsIsland = Island;
             Shape.Shoulder = Shoulder;
-            Shape.Stroke = Island || S.Outline ? Ui.Brush(S.Outline ? "#47FFFFFF" : "#2EFFFFFF") : null;
+            Shape.Stroke = !S.Oled && (Island || S.Outline) ? Ui.Brush(S.Outline ? "#47FFFFFF" : "#2EFFFFFF") : null;
+            Shape.ShowLens = S.CameraCutout;
+            BubbleBg.Stroke = S.Oled ? null : Ui.Brush("#2EFFFFFF");
+            Bubble.Margin = new Thickness(0, Math.Max(TopGap, 5), 0, 0);
+            Bubble.Width = Bubble.Height = RowH;
             BuildTabs();
             Notch.Margin = new Thickness(0, TopGap, 0, 0);
             HoverZone.Margin = new Thickness(0, 0, 0, 0);
@@ -340,7 +357,7 @@ namespace Crest
             var b = Win32.MonitorBounds(_monitor);
             double sc = Win32.MonitorScale(_monitor);
             int w = (int)Math.Ceiling(dip.Width * sc), h = (int)Math.Ceiling(dip.Height * sc);
-            int x = b.Left + (b.Width - w) / 2;
+            int x = b.Left + (b.Width - w) / 2 + (int)Math.Round(S.NotchOffset * sc);
             Win32.SetWindowPos(_hwnd, Win32.HWND_TOPMOST, x, b.Top, w, h, Win32.SWP_NOACTIVATE);
         }
 
@@ -381,6 +398,7 @@ namespace Crest
 
             _expanded = true;
             _gen++;
+            RenderBubble();
             _hoverTimer.Stop();
             _outsideSince = null;
             _prevFg = Win32.GetForegroundWindow();
@@ -550,7 +568,7 @@ namespace Crest
 
         void ApplyShadow(bool on)
         {
-            double blur = S.Shadow switch { "Subtle" => 16, "Medium" => 28, "Deep" => 44, _ => 0 };
+            double blur = S.Oled ? 0 : S.Shadow switch { "Subtle" => 16, "Medium" => 28, "Deep" => 44, _ => 0 };
             if (!on || blur <= 0) { Notch.Effect = null; return; }
             Notch.Effect = new System.Windows.Media.Effects.DropShadowEffect
             {
@@ -589,7 +607,7 @@ namespace Crest
         void HoverTick()
         {
             _hoverTimer.Stop();
-            if (_expanded) return;
+            if (_expanded || _gDown) return;
             bool leftDown = Win32.GetKeyState(0x01) < 0;
             if (leftDown && !DragHovering) return; // user is dragging a window (e.g. to Snap Layouts) — don't pop open
             if (IsCursorOver(Notch, 4) || IsCursorOver(HoverZone, 2)) Expand(null);
@@ -780,31 +798,36 @@ namespace Crest
         void UpdateCollapsed(bool force = false)
         {
             if (_expanded || _hwnd == IntPtr.Zero) return;
-            var timer = S.TimerActivity ? TimerService.Instance.LiveActivity : null;
-            var media = MediaService.Instance;
+            var acts = ActivityHub.Current();
+            _dismissed.RemoveWhere(k => !acts.Any(a => a.Key == k));
+            acts = acts.Where(a => !_dismissed.Contains(a.Key)).ToList();
+            _primary = _toast == null ? acts.FirstOrDefault() : null;
+            _secondary = _toast == null ? acts.Skip(1).FirstOrDefault() : null;
             Mode m = _toast != null ? (_toast.IsHud ? Mode.Hud : Mode.Toast)
-                   : timer != null ? Mode.Timer
-                   : S.MediaActivity && media.HasSession && media.IsPlaying ? Mode.Media
-                   : Mode.Idle;
+                   : _primary == null ? Mode.Idle
+                   : _primary.Id == "media" ? Mode.Media
+                   : Mode.Activity;
             bool modeChanged = m != _mode;
             _mode = m;
 
             bool privacy = S.PrivacyDots && (PrivacyService.Instance.MicInUse || PrivacyService.Instance.CamInUse);
             MediaArt.Visibility = m == Mode.Media ? Visibility.Visible : Visibility.Collapsed;
             Equalizer.Visibility = m == Mode.Media ? Visibility.Visible : Visibility.Collapsed;
-            bool labelled = m == Mode.Timer || m == Mode.Toast || m == Mode.Hud || (m == Mode.Idle && CornerInfo);
+            bool labelled = m == Mode.Activity || m == Mode.Toast || m == Mode.Hud || (m == Mode.Idle && CornerInfo);
             LeftLabel.Visibility = labelled ? Visibility.Visible : Visibility.Collapsed;
             RightText.Visibility = labelled ? Visibility.Visible : Visibility.Collapsed;
             RightBattery.Visibility = (m == Mode.Toast && _toast?.Battery != null) || (m == Mode.Idle && CornerInfo && PowerService.Instance.HasBattery) ? Visibility.Visible : Visibility.Collapsed;
             if (_toast?.Kind != "msg") { _msgTimer.Stop(); LeftText.MaxWidth = 170; LeftText.BeginAnimation(OpacityProperty, null); }
-            HudBar.Visibility = m == Mode.Hud ? Visibility.Visible : Visibility.Collapsed;
+            bool bar = m == Mode.Hud || (m == Mode.Activity && _primary?.Progress != null);
+            HudBar.Visibility = bar ? Visibility.Visible : Visibility.Collapsed;
+            if (m != Mode.Activity) { ActionPanel.Visibility = Visibility.Collapsed; LeftGlyph.BeginAnimation(OpacityProperty, null); }
             RefreshActivityContent();
 
             Size body = m switch
             {
                 Mode.Idle => (LineIdle || HiddenIdle) && privacy ? NotchIdle : IdleBody,
                 Mode.Media => ActivityBody,
-                Mode.Timer => ActivityBody,
+                Mode.Activity => new Size(_primary!.Actions.Count > 0 ? Math.Round(390 * K) : ActivityBody.Width, _primary.Progress != null ? HudBody.Height : RowH),
                 Mode.Hud => HudBody,
                 _ => _toast?.Kind == "msg" ? new Size(Math.Round(420 * K), RowH) : ToastBody
             };
@@ -828,6 +851,7 @@ namespace Crest
             if (m == Mode.Media) { if (!_eqTimer.IsEnabled) _eqTimer.Start(); }
             else _eqTimer.Stop();
             UpdatePrivacy();
+            RenderBubble();
         }
 
         void RefreshActivityContent()
@@ -873,19 +897,31 @@ namespace Crest
                     RightBattery.Charging = pw.OnAc && pw.Percent < 100;
                     break;
 
-                case Mode.Timer:
-                    var a = TimerService.Instance.LiveActivity;
-                    if (a == null) break;
-                    LeftGlyph.FontFamily = (FontFamily)FindResource("IconFont");
-                    LeftGlyph.Text = Glyphs.Stopwatch;
-                    LeftGlyph.Visibility = Visibility.Visible;
-                    LeftGlyph.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
-                    LeftText.Text = a.Value.Label;
-                    LeftText.Margin = new Thickness(7, 0, 0, 0);
-                    LeftText.Visibility = Visibility.Visible;
+                case Mode.Activity:
+                    var act = _primary;
+                    if (act == null) break;
+                    LeftGlyph.FontFamily = (FontFamily)FindResource(act.Emoji ? "EmojiFont" : "IconFont");
+                    LeftGlyph.Text = act.Glyph;
+                    LeftGlyph.Visibility = string.IsNullOrEmpty(act.Glyph) ? Visibility.Collapsed : Visibility.Visible;
+                    if (act.GlyphBrush != null) LeftGlyph.Foreground = act.GlyphBrush; else LeftGlyph.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
+                    if (act.Pulse && LeftGlyph.Tag as string != "pulse")
+                    {
+                        LeftGlyph.Tag = "pulse";
+                        LeftGlyph.BeginAnimation(OpacityProperty, new DoubleAnimation(1, 0.3, TimeSpan.FromMilliseconds(650)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
+                    }
+                    else if (!act.Pulse && LeftGlyph.Tag as string == "pulse") { LeftGlyph.Tag = null; LeftGlyph.BeginAnimation(OpacityProperty, null); }
+                    LeftText.Text = act.Title;
+                    LeftText.Margin = new Thickness(string.IsNullOrEmpty(act.Glyph) ? 0 : 7, 0, 0, 0);
+                    LeftText.Visibility = string.IsNullOrEmpty(act.Title) ? Visibility.Collapsed : Visibility.Visible;
                     LeftText.Foreground = Ui.Res("Text2Brush");
-                    RightText.Text = a.Value.Time;
-                    RightText.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
+                    RightText.Text = act.Value;
+                    if (act.ValueBrush != null) RightText.Foreground = act.ValueBrush; else RightText.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
+                    if (act.Progress != null)
+                    {
+                        HudFill.SetResourceReference(Border.BackgroundProperty, "AccentBrush");
+                        HudScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(Math.Clamp(act.Progress.Value, 0, 1), TimeSpan.FromMilliseconds(200)));
+                    }
+                    RenderActions(act);
                     break;
 
                 case Mode.Toast:
@@ -909,12 +945,231 @@ namespace Crest
                         StartMessage(t.Title);
                     }
                     if (t.Battery.HasValue) { RightBattery.Level = t.Battery.Value; RightBattery.Charging = t.Charging; }
+                    if (t.IsHud) HudFill.Background = Brushes.White;
                     if (t.IsHud)
                         HudScale.BeginAnimation(ScaleTransform.ScaleXProperty,
                             new DoubleAnimation(Math.Clamp(t.Level!.Value, 0, 1), TimeSpan.FromMilliseconds(140)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
                     break;
             }
         }
+
+        // ================= split pill, gestures, pop-out =================
+        LiveActivity? _primary, _secondary;
+        readonly HashSet<string> _dismissed = new HashSet<string>();
+        Point _gStart;
+        bool _gDown, _gHoriz, _gPull;
+        FrameworkElement? _gTarget;
+        double _swipeAccum;
+        DateTime _swipeAt;
+
+        IEnumerable<LiveActivity> TimerActivities()
+        {
+            if (!S.TimerActivity) yield break;
+            var t = TimerService.Instance;
+            var a = t.LiveActivity;
+            if (a == null) yield break;
+            string kind = t.PomoRunning ? "pomo-" + t.Phase : t.CdRunning ? "cd" : "sw";
+            yield return new LiveActivity
+            {
+                Id = "timer", Priority = 60, Glyph = Glyphs.Stopwatch, Title = a.Value.Label, Value = a.Value.Time,
+                Tab = "Timers", Signature = kind, Progress = null
+            };
+        }
+
+        IEnumerable<LiveActivity> MediaActivities()
+        {
+            var md = MediaService.Instance;
+            if (!S.MediaActivity || !md.HasSession || !md.IsPlaying) yield break;
+            yield return new LiveActivity { Id = "media", Priority = 40, Glyph = Glyphs.Music, Title = md.Title, Art = md.Art, Tab = "Home", Signature = md.Title + "|" + md.AppName };
+        }
+
+        void RenderActions(LiveActivity act)
+        {
+            ActionPanel.Children.Clear();
+            ActionPanel.Visibility = act.Actions.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            foreach (var (id, label) in act.Actions.Take(2))
+            {
+                var b = new Button { Style = Ui.StyleRes("Pill"), Content = label, Padding = new Thickness(10, 2, 10, 2), FontSize = Math.Round(11.5 * K, 1), Margin = new Thickness(4, 0, 0, 0), Background = Ui.Res("HoverBrush") };
+                var aid = id;
+                b.Click += (s, e) => { e.Handled = true; try { act.OnAction?.Invoke(aid); } catch (Exception ex) { Log.Error("activity action", ex); } };
+                ActionPanel.Children.Add(b);
+            }
+        }
+
+        void RenderBubble()
+        {
+            var sec = _expanded ? null : _secondary;
+            if (sec == null)
+            {
+                if (Bubble.Visibility == Visibility.Visible)
+                {
+                    var shrink = new DoubleAnimation(0.2, TimeSpan.FromMilliseconds(180));
+                    shrink.Completed += (s, e) => { if (_secondary == null || _expanded) Bubble.Visibility = Visibility.Collapsed; };
+                    BubbleScale.BeginAnimation(ScaleTransform.ScaleXProperty, shrink);
+                    BubbleScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.2, TimeSpan.FromMilliseconds(180)));
+                }
+                return;
+            }
+            bool appearing = Bubble.Visibility != Visibility.Visible;
+            Bubble.Visibility = Visibility.Visible;
+            Bubble.ToolTip = string.IsNullOrEmpty(sec.Value) ? sec.Title : sec.Title + "  ·  " + sec.Value;
+            if (sec.Art != null)
+            {
+                BubbleArt.Fill = new ImageBrush(sec.Art) { Stretch = Stretch.UniformToFill };
+                BubbleArt.Visibility = Visibility.Visible;
+                BubbleGlyph.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                BubbleArt.Visibility = Visibility.Collapsed;
+                BubbleGlyph.Visibility = Visibility.Visible;
+                BubbleGlyph.FontFamily = (FontFamily)FindResource(sec.Emoji ? "EmojiFont" : "IconFont");
+                BubbleGlyph.Text = sec.Glyph;
+                if (sec.GlyphBrush != null) BubbleGlyph.Foreground = sec.GlyphBrush; else BubbleGlyph.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
+            }
+            BubbleRing.Visibility = sec.Progress != null ? Visibility.Visible : Visibility.Collapsed;
+            if (sec.Progress != null) BubbleRing.Progress = sec.Progress.Value;
+
+            // Sit just right of the notch body, spring along as the notch morphs.
+            double target = _bodySize.Width / 2 + Shoulder + 8 + RowH / 2;
+            BubbleX.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(target, TimeSpan.FromMilliseconds(520)) { EasingFunction = new SpringEase { Damping = 0.72 } });
+            if (appearing)
+            {
+                BubbleX.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(target - RowH, target, TimeSpan.FromMilliseconds(560)) { EasingFunction = new SpringEase { Damping = 0.66 } });
+                BubbleScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0.3, 1, TimeSpan.FromMilliseconds(520)) { EasingFunction = new SpringEase { Damping = 0.62 } });
+                BubbleScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.3, 1, TimeSpan.FromMilliseconds(520)) { EasingFunction = new SpringEase { Damping = 0.62 } });
+            }
+        }
+
+        TranslateTransform DragTransform(FrameworkElement el) => el == Bubble ? BubbleDrag : NotchShift;
+
+        void HookGestures(FrameworkElement el)
+        {
+            el.PreviewMouseLeftButtonDown += (s, e) =>
+            {
+                if (_expanded) return;
+                if (Ui.FindAncestor<System.Windows.Controls.Primitives.ButtonBase>(e.OriginalSource as DependencyObject) != null) return;
+                _gDown = true; _gHoriz = _gPull = false; _gTarget = el;
+                _gStart = e.GetPosition(this);
+                _hoverTimer.Stop();
+                el.CaptureMouse();
+                e.Handled = true;
+            };
+            el.PreviewMouseMove += (s, e) =>
+            {
+                if (!_gDown || _gTarget != el) return;
+                var p = e.GetPosition(this);
+                double dx = p.X - _gStart.X, dy = p.Y - _gStart.Y;
+                if (!_gHoriz && !_gPull)
+                {
+                    if (Math.Abs(dx) > 8 && Math.Abs(dx) > Math.Abs(dy)) _gHoriz = true;
+                    else if (dy > 10 && dy > Math.Abs(dx)) _gPull = true;
+                }
+                var tt = DragTransform(el);
+                if (_gHoriz) { tt.BeginAnimation(TranslateTransform.XProperty, null); tt.X = dx * 0.75; el.Opacity = Math.Max(0.35, 1 - Math.Abs(dx) / 260); }
+                if (_gPull) { tt.BeginAnimation(TranslateTransform.YProperty, null); tt.Y = Math.Min(40, dy * 0.4); }
+            };
+            el.PreviewMouseLeftButtonUp += (s, e) =>
+            {
+                if (!_gDown || _gTarget != el) return;
+                _gDown = false;
+                el.ReleaseMouseCapture();
+                var p = e.GetPosition(this);
+                double dx = p.X - _gStart.X, dy = p.Y - _gStart.Y;
+                e.Handled = true;
+                if (_gHoriz && Math.Abs(dx) > 70) { Dismiss(el, Math.Sign(dx)); return; }
+                SpringBack(el);
+                if (_gPull && dy > 55) { PopOut(el == Bubble ? _secondary?.Tab ?? _tab : _primary?.Tab ?? _tab, false); return; }
+                if (Math.Abs(dx) < 6 && Math.Abs(dy) < 6)
+                {
+                    if (el == Bubble) Expand(_secondary?.Tab);
+                    else Expand(_toast == null ? _primary?.Tab : null);
+                }
+            };
+            el.LostMouseCapture += (s, e) => { if (_gDown && _gTarget == el) { _gDown = false; SpringBack(el); } };
+        }
+
+        void SpringBack(FrameworkElement el)
+        {
+            var tt = DragTransform(el);
+            tt.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(420)) { EasingFunction = new SpringEase { Damping = 0.6 } });
+            tt.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(420)) { EasingFunction = new SpringEase { Damping = 0.6 } });
+            el.BeginAnimation(OpacityProperty, null);
+            el.Opacity = 1;
+        }
+
+        /// <summary>Hide the activity shown by this element (notch or bubble) without stopping it.</summary>
+        void Dismiss(FrameworkElement el, int dir)
+        {
+            var tt = DragTransform(el);
+            var fly = new DoubleAnimation(dir * 240, TimeSpan.FromMilliseconds(200)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
+            fly.Completed += (s, e) =>
+            {
+                if (el == Bubble) { if (_secondary != null) _dismissed.Add(_secondary.Key); }
+                else if (_toast != null) { _toast = null; _toastTimer.Stop(); }
+                else if (_primary != null) _dismissed.Add(_primary.Key);
+                tt.BeginAnimation(TranslateTransform.XProperty, null);
+                tt.X = 0;
+                el.Opacity = 1;
+                if (el == Bubble) { Bubble.Visibility = Visibility.Collapsed; }
+                UpdateCollapsed(true);
+                if (el != Bubble) Notch.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(260)));
+            };
+            tt.BeginAnimation(TranslateTransform.XProperty, fly);
+            el.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(200)));
+        }
+
+        void HorizontalSwipe(FrameworkElement el, int delta)
+        {
+            if ((DateTime.Now - _swipeAt).TotalMilliseconds > 350) _swipeAccum = 0;
+            _swipeAt = DateTime.Now;
+            _swipeAccum += delta;
+            var tt = DragTransform(el);
+            tt.BeginAnimation(TranslateTransform.XProperty, null);
+            tt.X = Math.Clamp(_swipeAccum * 0.25, -90, 90);
+            if (Math.Abs(_swipeAccum) > 360) { _swipeAccum = 0; Dismiss(el, Math.Sign(tt.X == 0 ? 1 : tt.X)); return; }
+            var at = _swipeAt;
+            Ui.Later(380, () => { if (_swipeAt == at && !_gDown) { _swipeAccum = 0; SpringBack(el); } });
+        }
+
+        void HookHeaderPull()
+        {
+            Point start = default;
+            bool down = false;
+            HeaderLeft.PreviewMouseLeftButtonDown += (s, e) => { start = e.GetPosition(this); down = true; HeaderLeft.CaptureMouse(); };
+            HeaderLeft.PreviewMouseMove += (s, e) =>
+            {
+                if (!down) return;
+                double dy = e.GetPosition(this).Y - start.Y;
+                ExpandedShift.BeginAnimation(TranslateTransform.YProperty, null);
+                ExpandedShift.Y = Math.Clamp(dy * 0.3, 0, 30);
+                if (dy > 60) { down = false; HeaderLeft.ReleaseMouseCapture(); ExpandedShift.Y = 0; PopOut(_tab, true); }
+            };
+            HeaderLeft.PreviewMouseLeftButtonUp += (s, e) =>
+            {
+                if (!down) return;
+                down = false;
+                HeaderLeft.ReleaseMouseCapture();
+                ExpandedShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(300)) { EasingFunction = new SpringEase { Damping = 0.7 } });
+            };
+        }
+
+        /// <summary>Detach a tab into a persistent floating widget.</summary>
+        public void PopOut(string? tab, bool fromExpanded)
+        {
+            tab ??= _tab;
+            if (tab == "Settings") tab = "Home";
+            Point? at = null;
+            if (Win32.GetCursorPos(out var cp))
+            {
+                var dpi = VisualTreeHelper.GetDpi(this);
+                at = new Point(cp.X / dpi.DpiScaleX, cp.Y / dpi.DpiScaleY);
+            }
+            if (fromExpanded) { PinButton.IsChecked = false; Collapse(); }
+            FloatWindow.Open(tab, at);
+        }
+
+        internal static FrameworkElement CreateViewFor(string key) => CreateView(key);
 
         void EqTick()
         {

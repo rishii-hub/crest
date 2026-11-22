@@ -15,6 +15,11 @@ namespace Crest.Core
         public string Shadow { get; set; } = "Medium";      // None | Subtle | Medium | Deep
         public string EqColor { get; set; } = "Album";      // Album | Accent | Rainbow
         public bool TabAnimations { get; set; } = true;
+        public bool Oled { get; set; } = false;             // pure #000, no outline/shadow — blends into OLED bezels
+        public bool CameraCutout { get; set; } = false;     // draw a camera lens in the notch
+        public int NotchOffset { get; set; } = 0;           // DIP offset from screen centre to line up with a physical cutout
+        public double? FloatLeft { get; set; }
+        public double? FloatTop { get; set; }
         public List<string> HiddenTabs { get; set; } = new List<string> { "Message" };
         public string Accent { get; set; } = "#FF9F0A";
 

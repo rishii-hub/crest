@@ -57,6 +57,15 @@ namespace Crest.Controls
         public double BottomRadius { get => (double)GetValue(BottomRadiusProperty); set => SetValue(BottomRadiusProperty, value); }
         public bool IsIsland { get => (bool)GetValue(IsIslandProperty); set => SetValue(IsIslandProperty, value); }
 
+        public static readonly DependencyProperty ShowLensProperty = DependencyProperty.Register(nameof(ShowLens), typeof(bool), typeof(NotchShape),
+            new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+        /// <summary>Simulated camera cutout in the middle (OLED / bezel look).</summary>
+        public bool ShowLens { get => (bool)GetValue(ShowLensProperty); set => SetValue(ShowLensProperty, value); }
+
+        static readonly Brush LensFill = Freeze(new RadialGradientBrush(Color.FromRgb(0x1C, 0x1F, 0x2E), Color.FromRgb(0x05, 0x05, 0x07)));
+        static readonly Pen LensRing = new Pen(Freeze(new SolidColorBrush(Color.FromRgb(0x16, 0x16, 0x1C))), 1.2);
+        static Brush Freeze(Brush b) { b.Freeze(); return b; }
+
         protected override void OnRenderSizeChanged(SizeChangedInfo info)
         {
             base.OnRenderSizeChanged(info);
@@ -95,6 +104,13 @@ namespace Crest.Controls
             }
             g.Freeze();
             dc.DrawGeometry(Fill, Stroke != null ? new Pen(Stroke, 1) : null, g);
+            if (ShowLens && h > 14)
+            {
+                double r = Math.Min(5.2, h * 0.17);
+                var c = new Point(w / 2, Math.Min(h / 2, 16));
+                dc.DrawEllipse(LensFill, LensRing, c, r, r);
+                dc.DrawEllipse(Brushes.White, null, new Point(c.X - r * 0.35, c.Y - r * 0.35), r * 0.18, r * 0.18);
+            }
         }
     }
 

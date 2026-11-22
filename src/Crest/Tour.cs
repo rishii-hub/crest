@@ -84,6 +84,29 @@ namespace Crest
                 await Task.Delay(1200); Capture("live-timer");
                 TimerService.Instance.CdReset();
 
+                // Split pill: a running timer + a third-party style activity side by side
+                var demo = new LiveActivity { Id = "demo", Priority = 70, Glyph = Glyphs.Download, Title = "Uploading build", Value = "42%", Progress = 0.42, Tab = "Home", Signature = "demo",
+                    Actions = { ("cancel", "Cancel") } };
+                bool demoOn = true;
+                ActivityHub.Register(() => demoOn ? new[] { demo } : Array.Empty<LiveActivity>());
+                TimerService.Instance.CdSet(25);
+                TimerService.Instance.CdToggle();
+                ActivityHub.Notify();
+                await Task.Delay(1400); Capture("split-pill");
+                Dismiss(Notch, 1);
+                await Task.Delay(900); Capture("split-dismissed");
+                demoOn = false;
+                TimerService.Instance.CdReset();
+                ActivityHub.Notify();
+                await Task.Delay(600);
+                SettingsStore.Update(x => { x.Oled = true; x.CameraCutout = true; x.RestingInfo = "Corners"; });
+                await Task.Delay(1200); Capture("oled-cutout");
+                SettingsStore.Update(x => { x.Oled = false; x.CameraCutout = false; x.RestingInfo = "None"; });
+                FloatWindow.Open("Timers", new Point(SystemParameters.PrimaryScreenWidth / 2, 40));
+                await Task.Delay(1300); Capture("floating-widget");
+                foreach (Window w in Application.Current.Windows) if (w is FloatWindow) w.Close();
+                await Task.Delay(400);
+
                 SettingsStore.Update(x => x.Style = "Island");
                 await Task.Delay(1200); Capture("style-island");
                 Expand("Home");

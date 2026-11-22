@@ -16,14 +16,35 @@
         Foreground="{StaticResource TextBrush}"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
-        TextOptions.TextFormattingMode="Display">
+        TextOptions.TextFormattingMode="Display"
+        Stylus.IsFlicksEnabled="False">
 
   <Grid x:Name="Root">
 
     <!-- Invisible (alpha 1) strip so the thin "line" look is still easy to hover. -->
     <Border x:Name="HoverZone" Background="#01000000" HorizontalAlignment="Center" VerticalAlignment="Top" Width="200" Height="10"/>
 
-    <Grid x:Name="Notch" HorizontalAlignment="Center" VerticalAlignment="Top" Width="208" Height="32" ClipToBounds="True">
+    <!-- Split-pill bubble: the second live activity, as a separate island beside the notch -->
+    <Grid x:Name="Bubble" HorizontalAlignment="Center" VerticalAlignment="Top" Width="32" Height="32" Visibility="Collapsed"
+          RenderTransformOrigin="0.5,0.5" Cursor="Hand" Stylus.IsPressAndHoldEnabled="False">
+      <Grid.RenderTransform>
+        <TransformGroup>
+          <ScaleTransform x:Name="BubbleScale" ScaleX="0.3" ScaleY="0.3"/>
+          <TranslateTransform x:Name="BubbleX"/>
+          <TranslateTransform x:Name="BubbleDrag"/>
+        </TransformGroup>
+      </Grid.RenderTransform>
+      <Ellipse x:Name="BubbleBg" Fill="Black"/>
+      <Ellipse x:Name="BubbleArt" Margin="4" Visibility="Collapsed"/>
+      <c:RingProgress x:Name="BubbleRing" Margin="3" Thickness="2.5" Visibility="Collapsed" RingBrush="{DynamicResource AccentBrush}"/>
+      <TextBlock x:Name="BubbleGlyph" Style="{StaticResource Icon}" FontSize="13" Foreground="{DynamicResource AccentBrush}"/>
+    </Grid>
+
+    <Grid x:Name="Notch" HorizontalAlignment="Center" VerticalAlignment="Top" Width="208" Height="32" ClipToBounds="True"
+          Stylus.IsPressAndHoldEnabled="False">
+      <Grid.RenderTransform>
+        <TranslateTransform x:Name="NotchShift"/>
+      </Grid.RenderTransform>
       <c:NotchShape x:Name="Shape" Fill="Black"/>
 
       <!-- ===== Collapsed: live activities ===== -->
@@ -52,6 +73,7 @@
             </StackPanel>
             <TextBlock x:Name="RightText" Style="{StaticResource Num}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" Visibility="Collapsed"/>
             <c:BatteryGlyph x:Name="RightBattery" Margin="7,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"/>
+            <StackPanel x:Name="ActionPanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0" Visibility="Collapsed"/>
             <StackPanel x:Name="PrivacyDots" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0" Visibility="Collapsed">
               <Ellipse x:Name="CamDot" Width="6" Height="6" Fill="{StaticResource GreenBrush}" Margin="0,0,3,0" Visibility="Collapsed"/>
               <Ellipse x:Name="MicDot" Width="6" Height="6" Fill="{StaticResource OrangeBrush}" Visibility="Collapsed"/>
@@ -93,11 +115,12 @@
               <c:BatteryGlyph x:Name="HeaderBatteryGlyph" VerticalAlignment="Center"/>
             </StackPanel>
             <Rectangle Width="1" Height="16" Fill="#33FFFFFF" Margin="0,0,6,0"/>
+            <Button x:Name="PopOutButton" Style="{StaticResource IconButton}" Content="&#xE8A7;" FontSize="12" Width="30" Height="30" ToolTip="Pop out as a floating widget (or drag the title down)"/>
             <ToggleButton x:Name="PinButton" Style="{StaticResource IconToggle}" Content="&#xE718;" FontSize="12" Width="30" Height="30" ToolTip="Keep open"/>
             <Button x:Name="SettingsButton" Style="{StaticResource IconButton}" Content="&#xE713;" FontSize="13" Width="30" Height="30" ToolTip="Settings"/>
             <Button x:Name="CloseButton" Style="{StaticResource IconButton}" Content="&#xE711;" FontSize="11" Width="30" Height="30" ToolTip="Close  (Esc)"/>
           </StackPanel>
-          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <StackPanel x:Name="HeaderLeft" Orientation="Horizontal" VerticalAlignment="Center" Background="Transparent" Cursor="SizeAll">
             <Border Width="24" Height="24" CornerRadius="7" Background="White" Margin="2,0,10,0">
               <TextBlock x:Name="HeaderGlyph" Style="{StaticResource Icon}" FontSize="12" Foreground="Black" Text="&#xE80F;"/>
             </Border>
