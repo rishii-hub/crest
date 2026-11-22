@@ -92,6 +92,10 @@ namespace Crest
             Application.Current.Shutdown();
         }
 
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")] static extern bool BitBlt(IntPtr hdc, int x, int y, int w, int h, IntPtr src, int sx, int sy, int rop);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr GetDC(IntPtr hWnd);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern int ReleaseDC(IntPtr hWnd, IntPtr hdc);
+
         void Capture(string name)
         {
             try
@@ -100,10 +104,14 @@ namespace Crest
                 double sc = Win32.MonitorScale(_monitor);
                 int w = Math.Min(b.Width, (int)(920 * sc)), h = Math.Min(b.Height, (int)(430 * sc));
                 int x = b.Left + (b.Width - w) / 2;
-                using var bmp = new System.Drawing.Bitmap(w, h);
+                using var bmp = new System.Drawing.Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
                 using (var g = System.Drawing.Graphics.FromImage(bmp))
-                    g.CopyFromScreen(x, b.Top, 0, 0, new System.Drawing.Size(w, h),
-                        System.Drawing.CopyPixelOperation.SourceCopy | System.Drawing.CopyPixelOperation.CaptureBlt);
+                {
+                    IntPtr dst = g.GetHdc();
+                    IntPtr src = GetDC(IntPtr.Zero);
+                    try { BitBlt(dst, 0, 0, w, h, src, x, b.Top, 0x00CC0020 | 0x40000000); } // SRCCOPY | CAPTUREBLT (includes layered windows)
+                    finally { ReleaseDC(IntPtr.Zero, src); g.ReleaseHdc(dst); }
+                }
                 bmp.Save(Path.Combine(_tourDir, name + ".png"), System.Drawing.Imaging.ImageFormat.Png);
                 Log.Write("tour: captured " + name);
             }

@@ -19,7 +19,7 @@
     <Description>An open-source Dynamic Island / notch for Windows</Description>
     <Company>Crest contributors</Company>
     <Copyright>Copyright (c) 2026 Crest contributors. MIT License.</Copyright>
-    <NoWarn>$(NoWarn);CA1416;CS8618;CS8602;CS8604;CS8600;CS8603;CS8625;CS8601</NoWarn>
+    <NoWarn>$(NoWarn);WFAC010;CA1416;CS8618;CS8602;CS8604;CS8600;CS8603;CS8625;CS8601</NoWarn>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
 
