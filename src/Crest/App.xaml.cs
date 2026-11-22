@@ -21,6 +21,14 @@ namespace Crest
         {
             base.OnStartup(e);
 
+            int act = Array.IndexOf(e.Args, "--activity");
+            if (act >= 0 && act + 1 < e.Args.Length)
+            {
+                // `Crest.exe --activity "{json}"` — hand the activity to the running Crest and exit.
+                PipeService.SendFromCli(e.Args[act + 1]);
+                Shutdown();
+                return;
+            }
             bool restart = Array.IndexOf(e.Args, "--restart") >= 0;
             _mutex = new Mutex(false, MutexName);
             bool first;

@@ -46,6 +46,10 @@ namespace Crest
                 }
 
                 s.HiddenTabs.Clear();
+                s.Alarms.Add(new AlarmItem { Hour = 7, Minute = 30, Label = "Gym", Days = 0x3E });
+                s.Alarms.Add(new AlarmItem { Hour = 9, Minute = 0, Label = "Standup", Days = 0x3E, Enabled = false });
+                s.Automations.Add(new AutomationItem { Name = "Backup notes", Path = @"C:\Scripts\backup.ps1" });
+                SpotlightService.EnsureIndex();
                 BuildTabs();
                 await Task.Delay(1500);
                 Expand("Home");
@@ -54,10 +58,34 @@ namespace Crest
                 foreach (var (key, _, _, _) in Tabs)
                 {
                     if (key == "Timers") { TimerService.Instance.PomoToggle(); }
+                    if (key == "Tools") LanDropService.Start();
                     SelectTab(key);
                     await Task.Delay(key == "Weather" || key == "Units" || key == "AI" ? 3000 : 1300);
                     Capture("tab-" + key.ToLowerInvariant());
                     if (key == "Timers") { TimerService.Instance.PomoToggle(); TimerService.Instance.PomoReset(); }
+                }
+
+                // Alarms panel inside Timers
+                SelectTab("Timers");
+                if (_views.TryGetValue("Timers", out var tv) && tv is Views.TimersView timers) timers.AlarmMode.IsChecked = true;
+                await Task.Delay(900); Capture("tab-alarms");
+
+                // Spotlight hub: math, then apps/settings
+                PinButton.IsChecked = false;
+                Collapse();
+                await Task.Delay(700);
+                OpenSpotlight();
+                await Task.Delay(800);
+                if (_views.TryGetValue("Search", out var sv) && sv is Views.SpotlightView spot)
+                {
+                    spot.SetQuery("(12*7+16)/4");
+                    await Task.Delay(900); Capture("search-math");
+                    spot.SetQuery("10 km to mi");
+                    await Task.Delay(900); Capture("search-units");
+                    spot.SetQuery("note");
+                    await Task.Delay(1500); Capture("search-apps");
+                    spot.SetQuery("bluetooth");
+                    await Task.Delay(900); Capture("search-settings");
                 }
 
                 PinButton.IsChecked = false;
@@ -83,6 +111,71 @@ namespace Crest
                 TimerService.Instance.CdToggle();
                 await Task.Delay(1200); Capture("live-timer");
                 TimerService.Instance.CdReset();
+
+                // Alarm ringing with Snooze / Stop
+                AlarmService.Ring(new AlarmItem { Hour = DateTime.Now.Hour, Minute = DateTime.Now.Minute, Label = "Wake up" });
+                await Task.Delay(1200); Capture("live-alarm");
+                AlarmService.Stop();
+                await Task.Delay(700);
+
+                // Third-party Live Activity through the named-pipe API (same code path as the pipe server)
+                PipeService.Apply("{\"id\":\"deploy\",\"glyph\":\"🚀\",\"title\":\"Deploying crest\",\"value\":\"3/5\",\"progress\":0.6,\"color\":\"#30D158\",\"actions\":[{\"id\":\"cancel\",\"label\":\"Cancel\"}]}");
+                await Task.Delay(1300); Capture("live-pipe");
+                Expand("Home");
+                await Task.Delay(1000);
+                Collapse();
+                PipeService.Apply("{\"op\":\"end\",\"id\":\"deploy\"}");
+                await Task.Delay(700);
+
+                // Voice memo (real capture when a microphone exists, otherwise skipped)
+                if (RecorderService.Start() is null)
+                {
+                    await Task.Delay(2200); Capture("live-memo");
+                    RecorderService.Stop();
+                    await Task.Delay(900);
+                }
+                else Log.Write("tour: no microphone, memo skipped");
+
+                // Screen capture indicator (as reported by Windows' capability access store)
+                RecorderService.CaptureApps = "OBS Studio";
+                ActivityHub.Notify();
+                await Task.Delay(500); Capture("live-screen-capture");
+                RecorderService.CaptureApps = "";
+                ActivityHub.Notify();
+                await Task.Delay(700);
+
+                // LAN Drop: a real upload over loopback, accepted from the notch
+                if (LanDropService.Running || LanDropService.Start() is null)
+                {
+                    var pin = LanDropService.Pin;
+                    var upload = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            using var http = new System.Net.Http.HttpClient();
+                            var body = new System.Net.Http.ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("Hello from the Crest tour\n"));
+                            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, $"http://127.0.0.1:{LanDropService.Port}/upload") { Content = body };
+                            req.Headers.Add("X-Pin", pin);
+                            req.Headers.Add("X-Name", "holiday-photos.txt");
+                            var res = await http.SendAsync(req);
+                            Log.Write("tour: lan drop upload " + (int)res.StatusCode);
+                        }
+                        catch (Exception ex) { Log.Write("tour: lan drop upload failed " + ex.Message); }
+                    });
+                    await Task.Delay(1500); Capture("live-drop");
+                    foreach (var a in ActivityHub.Current()) if (a.Id.StartsWith("drop-")) a.OnAction?.Invoke("accept");
+                    await Task.WhenAny(upload, Task.Delay(5000));
+                    await Task.Delay(500); Capture("live-drop-received");
+                    LanDropService.Stop();
+                    await Task.Delay(2500);
+                }
+
+                // Bluetooth earbuds with battery level
+                ShowToast(new Toast { Kind = "bt", Glyph = Glyphs.Headphone, GlyphBrush = Ui.Res("BlueBrush"), Title = "Nothing Ear (a)", Value = "80%", ValueBrush = Ui.Res("GreenBrush"), Battery = 80, Duration = TimeSpan.FromSeconds(3) });
+                await Task.Delay(900); Capture("live-bluetooth-battery");
+                ShowToast(new Toast { Kind = "dnd", Glyph = Glyphs.Dnd, GlyphBrush = Ui.Res("PurpleBrush"), Title = "Do not disturb", Value = "Priority only", ValueBrush = Ui.Res("PurpleBrush"), Duration = TimeSpan.FromSeconds(2) });
+                await Task.Delay(900); Capture("live-dnd");
+                await Task.Delay(1800);
 
                 // Split pill: a running timer + a third-party style activity side by side
                 var demo = new LiveActivity { Id = "demo", Priority = 70, Glyph = Glyphs.Download, Title = "Uploading build", Value = "42%", Progress = 0.42, Tab = "Home", Signature = "demo",

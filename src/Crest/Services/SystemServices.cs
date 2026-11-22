@@ -298,6 +298,9 @@ namespace Crest.Services
             }
             var mic = Scan("microphone");
             var cam = Scan("webcam");
+            var capture = Scan("graphicsCaptureProgrammatic").Concat(Scan("graphicsCaptureWithoutBorder")).Distinct().Where(x => !x.Equals("Crest", StringComparison.OrdinalIgnoreCase)).ToList();
+            var capText = string.Join(", ", capture);
+            if (capText != RecorderService.CaptureApps) { RecorderService.CaptureApps = capText; ActivityHub.Notify(); }
             bool micUse = mic.Count > 0, camUse = cam.Count > 0;
             string micApps = string.Join(", ", mic), camApps = string.Join(", ", cam);
             if (micUse != MicInUse || camUse != CamInUse || micApps != MicApps || camApps != CamApps)

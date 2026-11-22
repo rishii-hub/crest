@@ -38,10 +38,13 @@ namespace Crest.Views
             BuildCountdown();
             BuildStopwatch();
             BuildWater();
+            BuildAlarms();
             PomoMode.Checked += (s, e) => ShowPanel();
             CdMode.Checked += (s, e) => ShowPanel();
             SwMode.Checked += (s, e) => ShowPanel();
             WaterMode.Checked += (s, e) => ShowPanel();
+            AlarmMode.Checked += (s, e) => ShowPanel();
+            AlarmService.Changed += () => { if (IsVisible) { _alarmListCount = -1; Refresh(); } };
             T.Tick += () => { if (IsVisible) Refresh(); };
             T.StateChanged += () => { if (IsVisible) Refresh(); };
         }
@@ -49,7 +52,8 @@ namespace Crest.Views
         public void OnActivated()
         {
             // Jump to whatever is running.
-            if (T.CdRunning && !T.PomoRunning) CdMode.IsChecked = true;
+            if (AlarmService.Ringing != null) AlarmMode.IsChecked = true;
+            else if (T.CdRunning && !T.PomoRunning) CdMode.IsChecked = true;
             else if (T.SwRunning && !T.PomoRunning && !T.CdRunning) SwMode.IsChecked = true;
             ShowPanel();
         }
@@ -62,6 +66,8 @@ namespace Crest.Views
             CdPanel.Visibility = CdMode.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             SwPanel.Visibility = SwMode.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             WaterPanel.Visibility = WaterMode.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            AlarmPanel.Visibility = AlarmMode.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            _alarmListCount = -1;
             Refresh();
         }
 
@@ -214,6 +220,104 @@ namespace Crest.Views
             WaterPanel.Children.Add(seg);
         }
 
+        // ---------- alarms ----------
+        StackPanel _alarmList = null!;
+        Border _alarmEditor = null!;
+        int _alarmListCount = -1;
+        static readonly string[] DayLetters = { "S", "M", "T", "W", "T", "F", "S" };
+
+        void BuildAlarms()
+        {
+            // editor: hour / minute steppers, repeat chips, label
+            int hour = 7, minute = 0, days = 0;
+            var h = new Stepper(v => $"{v:00} h", hour, 0, 23, 1) { Width = 108 };
+            h.Changed += v => hour = v;
+            var m = new Stepper(v => $"{v:00} m", minute, 0, 55, 5) { Width = 108 };
+            m.Changed += v => minute = v;
+            var chips = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+            for (int i = 0; i < 7; i++)
+            {
+                int bit = 1 << i;
+                var t = new ToggleButton { Style = Ui.StyleRes("Pill"), Content = DayLetters[i], Width = 26, Height = 26, Padding = new Thickness(0), Margin = new Thickness(1, 0, 1, 0), FontSize = 11, ToolTip = ((DayOfWeek)i).ToString() };
+                t.Click += (s, e) =>
+                {
+                    days ^= bit;
+                    if ((days & bit) != 0) t.SetResourceReference(Control.BackgroundProperty, "AccentBrush"); else t.ClearValue(Control.BackgroundProperty);
+                };
+                chips.Children.Add(t);
+            }
+            var label = new TextBox { Style = Ui.StyleRes("Field"), Text = "Alarm", Margin = new Thickness(0, 4, 0, 6) };
+            var add = new Button { Style = Ui.StyleRes("Pill"), Content = "+ Add alarm", HorizontalAlignment = HorizontalAlignment.Left };
+            add.Click += (s, e) =>
+            {
+                S.Alarms.Add(new AlarmItem { Hour = hour, Minute = minute, Days = days, Label = string.IsNullOrWhiteSpace(label.Text) ? "Alarm" : label.Text.Trim(), Enabled = true });
+                S.Alarms.Sort((a, b) => (a.Hour * 60 + a.Minute).CompareTo(b.Hour * 60 + b.Minute));
+                SettingsStore.Save();
+                _alarmListCount = -1;
+                Refresh();
+            };
+            var ed = new StackPanel();
+            ed.Children.Add(Row(h, m));
+            var rep = new DockPanel { Margin = new Thickness(4, 2, 0, 0) };
+            rep.Children.Add(new TextBlock { Text = "Repeat", Style = Ui.StyleRes("Caption"), VerticalAlignment = VerticalAlignment.Center, Width = 50 });
+            rep.Children.Add(chips);
+            ed.Children.Add(rep);
+            ed.Children.Add(label);
+            ed.Children.Add(add);
+            _alarmEditor = new Border { Child = ed, Padding = new Thickness(0, 8, 0, 0) };
+            DockPanel.SetDock(_alarmEditor, Dock.Bottom);
+            AlarmPanel.Children.Add(_alarmEditor);
+
+            _alarmList = new StackPanel();
+            AlarmPanel.Children.Add(new ScrollViewer { Content = _alarmList, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+        }
+
+        static string DaysText(int d) => d switch
+        {
+            0 => "Once",
+            0x7F => "Every day",
+            0x3E => "Weekdays",
+            0x41 => "Weekends",
+            _ => string.Join(" ", Enumerable.Range(0, 7).Where(i => (d & (1 << i)) != 0).Select(i => ((DayOfWeek)i).ToString()[..3]))
+        };
+
+        void RebuildAlarmList()
+        {
+            _alarmList.Children.Clear();
+            var ringing = AlarmService.Ringing;
+            if (ringing != null)
+            {
+                var bar = Row(new TextBlock { Text = "⏰  " + ringing.Label, FontFamily = (FontFamily)FindResource("EmojiFont"), FontSize = 13, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+                var snooze = new Button { Style = Ui.StyleRes("Pill"), Content = "Snooze 9m" };
+                snooze.Click += (s, e) => AlarmService.Snooze();
+                var stop = new Button { Style = Ui.StyleRes("Pill"), Content = "Stop", Foreground = Ui.Res("RedBrush"), Margin = new Thickness(6, 0, 0, 0) };
+                stop.Click += (s, e) => AlarmService.Stop();
+                bar.Children.Add(snooze); bar.Children.Add(stop);
+                bar.HorizontalAlignment = HorizontalAlignment.Left;
+                bar.Margin = new Thickness(0, 0, 0, 6);
+                _alarmList.Children.Add(bar);
+            }
+            if (S.Alarms.Count == 0)
+                _alarmList.Children.Add(new TextBlock { Text = "No alarms yet. Alarms ring while Crest is running.", Style = Ui.StyleRes("Caption"), TextWrapping = TextWrapping.Wrap });
+            foreach (var a in S.Alarms.ToList())
+            {
+                var item = a;
+                var row = new DockPanel { Margin = new Thickness(0, 1, 0, 1) };
+                var sw = new CheckBox { Style = Ui.StyleRes("Switch"), IsChecked = a.Enabled, VerticalAlignment = VerticalAlignment.Center };
+                sw.Click += (s, e) => { item.Enabled = sw.IsChecked == true; item.LastFired = ""; SettingsStore.Save(); Refresh(); };
+                var del = new Button { Style = Ui.StyleRes("IconButton"), Content = Glyphs.Close, Width = 22, Height = 22, FontSize = 9, ToolTip = "Delete", Margin = new Thickness(4, 0, 0, 0) };
+                del.Click += (s, e) => { S.Alarms.Remove(item); SettingsStore.Save(); _alarmListCount = -1; Refresh(); };
+                DockPanel.SetDock(del, Dock.Right); DockPanel.SetDock(sw, Dock.Right);
+                row.Children.Add(del); row.Children.Add(sw);
+                var txt = new StackPanel { Opacity = a.Enabled ? 1 : 0.5 };
+                txt.Children.Add(new TextBlock { Text = $"{a.Hour:00}:{a.Minute:00}", FontFamily = (FontFamily)FindResource("DisplayFont"), FontSize = 20, FontWeight = FontWeights.SemiBold, Typography = { NumeralAlignment = FontNumeralAlignment.Tabular } });
+                txt.Children.Add(new TextBlock { Text = $"{a.Label} · {DaysText(a.Days)}", FontSize = 11, Foreground = Ui.Res("Text2Brush"), TextTrimming = TextTrimming.CharacterEllipsis });
+                row.Children.Add(txt);
+                _alarmList.Children.Add(row);
+            }
+            _alarmListCount = S.Alarms.Count;
+        }
+
         // ---------- refresh ----------
         void Refresh()
         {
@@ -222,6 +326,23 @@ namespace Crest.Views
             CdSub.Text = Ui.ClockCeil(T.CdLeft) + (T.CdRunning ? "  ●" : "");
             SwSub.Text = Ui.Clock(T.SwElapsed) + (T.SwRunning ? "  ●" : "");
             WaterSub.Text = $"{T.WaterCount} / {S.WaterGoal}";
+            var next = AlarmService.NextRing();
+            AlarmSub.Text = AlarmService.Ringing != null ? "Ringing  ●" : next is DateTime nx ? (nx.Date == DateTime.Today ? "Next " : nx.Date == DateTime.Today.AddDays(1) ? "Tomorrow " : nx.ToString("ddd ")) + nx.ToString("HH:mm") : "None set";
+
+            if (AlarmMode.IsChecked == true)
+            {
+                if (_alarmListCount != S.Alarms.Count) RebuildAlarmList();
+                if (AlarmService.Ringing is AlarmItem r) { Ring.Progress = 1; BigTime.Text = $"{r.Hour:00}:{r.Minute:00}"; BigLabel.Text = r.Label; }
+                else if (next is DateTime n)
+                {
+                    var left = n - DateTime.Now;
+                    Ring.Progress = Math.Clamp(1 - left.TotalHours / 24, 0, 1);
+                    BigTime.Text = n.ToString("HH:mm");
+                    BigLabel.Text = left.TotalHours >= 1 ? $"in {(int)left.TotalHours}h {left.Minutes}m" : $"in {Math.Max(1, (int)Math.Ceiling(left.TotalMinutes))} min";
+                }
+                else { Ring.Progress = 0; BigTime.Text = "--:--"; BigLabel.Text = "No alarm"; }
+                return;
+            }
 
             if (PomoMode.IsChecked == true)
             {

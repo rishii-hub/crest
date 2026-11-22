@@ -63,6 +63,12 @@ namespace Crest.Views
             TimerService.Instance.Tick += () => { if (IsVisible) Widgets(); };
 
             MediaService.Instance.Changed += () => { if (IsVisible) RefreshMedia(); };
+            OutputBtn.Click += (s, e) =>
+            {
+                var name = AudioOutputs.Cycle();
+                RefreshOutput();
+                if (name != null) NotchWindow.Instance?.ShowToast(new Toast { Kind = "output", Glyph = "\uE7F5", Title = "Output", Value = name, Duration = TimeSpan.FromSeconds(1.8) });
+            };
             AudioService.Instance.VolumeChanged += (v, m) => { if (IsVisible) SyncAudio(); };
             BrightnessService.Instance.Changed += b => { if (IsVisible) SyncBrightness(); };
             WeatherService.Instance.Updated += () => { if (IsVisible) RefreshWeather(); };
@@ -70,7 +76,9 @@ namespace Crest.Views
 
         public void OnActivated()
         {
+            _active = true;
             RefreshMedia();
+            RefreshOutput();
             SyncAudio();
             SyncBrightness();
             RefreshWeather();
@@ -84,7 +92,24 @@ namespace Crest.Views
             _ = WeatherService.Instance.RefreshIfStaleAsync();
         }
 
-        public void OnDeactivated() => _timer.Stop();
+        public void OnDeactivated() { _timer.Stop(); _active = false; Spectrum.Running = false; }
+
+        bool _active;
+
+        void RefreshOutput()
+        {
+            var list = AudioOutputs.List();
+            var def = list.Find(x => x.IsDefault);
+            OutputText.Text = string.IsNullOrEmpty(def.Name) ? "No output" : Short(def.Name);
+            OutputBtn.ToolTip = (def.Name ?? "") + (list.Count > 1 ? "\nClick to switch to the next output" : "");
+            OutputBtn.IsEnabled = list.Count > 1;
+        }
+
+        static string Short(string n)
+        {
+            int p = n.IndexOf(" (", StringComparison.Ordinal);
+            return p > 0 ? n[..p] : n;
+        }
 
         long _idle, _kernel, _user;
         int _widgetTick;
@@ -143,6 +168,7 @@ namespace Crest.Views
             ArtistText.Text = has ? md.Artist : "Play something in Spotify, a browser or any media app";
             AppText.Text = has && !string.IsNullOrEmpty(md.AppName) ? md.AppName.ToUpperInvariant() : "NOW PLAYING";
             PlayBtn.Content = md.IsPlaying ? Glyphs.Pause : Glyphs.Play;
+            Spectrum.Running = _active && md.IsPlaying;
             PlayBtn.IsEnabled = md.HasSession;
             PrevBtn.IsEnabled = md.HasSession && md.CanPrev;
             NextBtn.IsEnabled = md.HasSession && md.CanNext;
@@ -151,6 +177,7 @@ namespace Crest.Views
             DurText.Text = Fmt(md.Duration);
             var tint = md.ArtColor ?? Ui.AccentColor;
             SeekSlider.Foreground = new SolidColorBrush(tint);
+            Spectrum.Brush = new SolidColorBrush(tint);
             if (md.Art != null)
             {
                 ArtBox.Background = new ImageBrush(md.Art) { Stretch = Stretch.UniformToFill };

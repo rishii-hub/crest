@@ -42,6 +42,17 @@
           </StackPanel>
         </Grid>
 
+        <Grid Grid.Row="1" Margin="0,8,0,0">
+          <c:SpectrumBars x:Name="Spectrum" Height="34" VerticalAlignment="Center" Margin="0,0,110,0"/>
+          <Button x:Name="OutputBtn" Style="{StaticResource Pill}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                  Padding="9,3" FontSize="11" MaxWidth="104" ToolTip="Click to switch audio output">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE7F5;" FontSize="11" Margin="0,0,5,0"/>
+              <TextBlock x:Name="OutputText" Text="Output" TextTrimming="CharacterEllipsis" MaxWidth="72"/>
+            </StackPanel>
+          </Button>
+        </Grid>
+
         <Grid x:Name="SeekRow" Grid.Row="2" Margin="0,8,0,0">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="40"/>

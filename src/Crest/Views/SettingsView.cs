@@ -112,6 +112,8 @@ namespace Crest.Views
             Toggle(live, "Privacy indicators", "Orange dot = microphone, green = camera", S.PrivacyDots, v => S.PrivacyDots = v);
             Toggle(live, "Clipboard copied", "Short confirmation when you copy something", S.CopiedHud, v => S.CopiedHud = v);
             Toggle(live, "Hide copied text", "Show “Text” or “Image” instead of what you copied", S.CopiedHideContent, v => S.CopiedHideContent = v);
+            Toggle(live, "Focus Assist / Do Not Disturb", "Show a pill when Windows notifications go quiet", S.FocusAssistHud, v => S.FocusAssistHud = v);
+            Toggle(live, "Mirror notifications & calls", "Needs the packaged (MSIX) build · " + NotificationMirror.Status, S.MirrorNotifications, v => { S.MirrorNotifications = v; if (v) NotificationMirror.Init(Dispatcher); else NotificationMirror.Stop(); });
             Toggle(live, "Sounds", "Chime when timers finish", S.Sounds, v => S.Sounds = v);
 
             // ---- Clipboard ----
@@ -144,9 +146,11 @@ namespace Crest.Views
             Info(about, "Ctrl + Alt + N", "Open / close the notch");
             Info(about, "Ctrl + Alt + V", "Clipboard history");
             Info(about, "Ctrl + Alt + P", "Start / pause Pomodoro");
+            Info(about, "Ctrl + Alt + Space", "Search apps, files, settings, math and the web");
             Info(about, "Esc", "Close");
             Info(about, "Swipe a live activity sideways", "Hide it (it keeps running)");
             Info(about, "Pull the notch down", "Pop the tab out as a floating widget");
+            Info(about, "Live Activity API", "Named pipe \\\\.\\pipe\\CrestLiveActivity, or crest.exe --activity \"{json}\"");
 
             var info = Section(_right, "About & updates");
             Info(info, "Crest " + UpdateService.CurrentText, "Open source · MIT License");

@@ -15,6 +15,7 @@
   <SolidColorBrush x:Key="BlueBrush" Color="#FF0A84FF"/>
   <SolidColorBrush x:Key="OrangeBrush" Color="#FFFF9F0A"/>
   <SolidColorBrush x:Key="CyanBrush" Color="#FF64D2FF"/>
+  <SolidColorBrush x:Key="PurpleBrush" Color="#FFBF5AF2"/>
 
   <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
   <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
@@ -418,6 +419,25 @@
               <Setter TargetName="Hint" Property="Visibility" Value="Visible"/>
             </Trigger>
           </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="PasswordField" TargetType="PasswordBox">
+    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+    <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+    <Setter Property="CaretBrush" Value="White"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="10,7"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="ToolTip" Value="API key (stored encrypted for your Windows account). Leave empty to keep the saved key."/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="PasswordBox">
+          <Border Background="{TemplateBinding Background}" CornerRadius="10" Padding="{TemplateBinding Padding}">
+            <ScrollViewer x:Name="PART_ContentHost" Focusable="False"/>
+          </Border>
         </ControlTemplate>
       </Setter.Value>
     </Setter>

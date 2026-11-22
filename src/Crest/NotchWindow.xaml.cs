@@ -62,11 +62,17 @@ namespace Crest
             ("ScreenTime", Glyphs.ScreenTime, "Screen Time", "Today"),
             ("AI", Glyphs.Robot, "AI Coding", "Claude Code & Codex"),
             ("Message", Glyphs.Message, "Message", "Notch banner"),
+            ("Assistant", Glyphs.Chat, "Assistant", "Ask anything"),
+            ("Tools", Glyphs.Tools, "Tools", "Voice memos · Recording · Scripts · LAN Drop"),
+            ("Search", Glyphs.Search, "Search", "Apps, files, settings, math & web"),
             ("Settings", Glyphs.Settings, "Settings", "")
         };
 
+        /// <summary>Tabs that open from the header / hotkey rather than the dock.</summary>
+        static readonly HashSet<string> NonDock = new HashSet<string> { "Search" };
+
         static IEnumerable<(string Key, string Glyph, string Title, string Sub)> Tabs =>
-            AllTabs.Where(t => t.Key == "Home" || t.Key == "Settings" || !S.HiddenTabs.Contains(t.Key));
+            AllTabs.Where(t => !NonDock.Contains(t.Key) && (t.Key == "Home" || t.Key == "Settings" || !S.HiddenTabs.Contains(t.Key)));
 
         IntPtr _hwnd, _monitor, _prevFg, _lastFg;
         HwndSource? _source;
@@ -164,6 +170,7 @@ namespace Crest
             PreviewDrop += (s, e) => _lastDragOver = DateTime.MinValue;
 
             SettingsButton.Click += (s, e) => SelectTab("Settings");
+            SearchButton.Click += (s, e) => OpenSpotlight();
             CloseButton.Click += (s, e) => { PinButton.IsChecked = false; Collapse(); };
             DockBorder.PreviewMouseWheel += (s, e) =>
             {
@@ -229,6 +236,19 @@ namespace Crest
             Safe("screentime", () => ScreenTimeService.Instance.Init(Dispatcher));
             ScreenTimeService.Instance.LimitReached += m => ShowToast(new Toast { Kind = "limit", Glyph = "⏳", Emoji = true, Title = "Screen time limit", Value = ScreenTimeService.Format(m * 60), ValueBrush = Ui.Res("OrangeBrush"), Duration = TimeSpan.FromSeconds(4) });
             ClipboardService.Instance.Copied += OnCopied;
+            Safe("alarms", () => AlarmService.Init(Dispatcher));
+            Safe("recorder", () => RecorderService.Init(Dispatcher));
+            Safe("automations", () => AutomationService.Init(Dispatcher));
+            Safe("pipe", () => PipeService.Init(Dispatcher));
+            Safe("lan drop", () => LanDropService.Init(Dispatcher));
+            Safe("notifications", () => NotificationMirror.Init(Dispatcher));
+            Safe("focus assist", () => FocusAssistService.Init(Dispatcher));
+            FocusAssistService.Changed += v =>
+            {
+                if (!S.FocusAssistHud) return;
+                ShowToast(new Toast { Kind = "dnd", Glyph = Glyphs.Dnd, GlyphBrush = v == 0 ? Ui.Res("Text2Brush") : Ui.Res("PurpleBrush"), Title = "Do not disturb", Value = FocusAssistService.Describe(v), ValueBrush = v == 0 ? Ui.Res("Text2Brush") : Ui.Res("PurpleBrush"), Duration = TimeSpan.FromSeconds(2) });
+            };
+            Ui.Later(20_000, SpotlightService.EnsureIndex);
             UpdateService.Changed += () =>
             {
                 if (!UpdateService.Available || UpdateService.Busy || S.NotifiedVersion == UpdateService.LatestTag) return;
@@ -252,7 +272,10 @@ namespace Crest
         {
             try
             {
-                for (int i = 1; i <= 3; i++) Win32.UnregisterHotKey(_hwnd, i);
+                for (int i = 1; i <= 4; i++) Win32.UnregisterHotKey(_hwnd, i);
+                PipeService.Stop();
+                LanDropService.Stop();
+                AudioViz.Release();
                 BrightnessService.Instance.Stop();
                 BluetoothService.Instance.Stop();
             }
@@ -265,6 +288,7 @@ namespace Crest
             if (!Win32.RegisterHotKey(_hwnd, 1, mods, 0x4E)) Log.Write("hotkey Ctrl+Alt+N unavailable");
             if (!Win32.RegisterHotKey(_hwnd, 2, mods, 0x56)) Log.Write("hotkey Ctrl+Alt+V unavailable");
             if (!Win32.RegisterHotKey(_hwnd, 3, mods, 0x50)) Log.Write("hotkey Ctrl+Alt+P unavailable");
+            if (!Win32.RegisterHotKey(_hwnd, 4, mods, 0x20)) Log.Write("hotkey Ctrl+Alt+Space unavailable");
         }
 
         IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -282,6 +306,7 @@ namespace Crest
                 {
                     case 1: Toggle(); break;
                     case 2: Expand("Clipboard"); break;
+                    case 4: OpenSpotlight(); break;
                     case 3:
                         var t = TimerService.Instance;
                         t.PomoToggle();
@@ -381,6 +406,17 @@ namespace Crest
         }
 
         // ================= expand / collapse =================
+        /// <summary>Spotlight: open the search hub and take keyboard focus (given back on Esc / close).</summary>
+        public void OpenSpotlight()
+        {
+            if (_hiddenFs) return;
+            if (!_expanded) _prevFg = Win32.GetForegroundWindow();
+            Expand("Search");
+            SetCanActivate(true);
+            Activate();
+            if (_views.TryGetValue("Search", out var v) && v is SpotlightView sv) Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(sv.FocusBox));
+        }
+
         public void Toggle()
         {
             if (_expanded) Collapse(); else Expand(null);
@@ -489,7 +525,7 @@ namespace Crest
 
         public void SelectTab(string key)
         {
-            if (!_tabButtons.ContainsKey(key))
+            if (!_tabButtons.ContainsKey(key) && !NonDock.Contains(key))
             {
                 if (AllTabs.Any(t => t.Key == key)) { S.HiddenTabs.Remove(key); SettingsStore.Save(); BuildTabs(); }
                 else key = "Home";
@@ -502,8 +538,10 @@ namespace Crest
             _tabIndex = newIndex;
             if (S.LastTab != key) { S.LastTab = key; SettingsStore.Save(); }
             _selecting = true;
-            _tabButtons[key].IsChecked = true;
+            if (_tabButtons.TryGetValue(key, out var tabButton)) tabButton.IsChecked = true;
+            else foreach (var b in _tabButtons.Values) b.IsChecked = false;
             _selecting = false;
+            DockPill.BeginAnimation(OpacityProperty, new DoubleAnimation(NonDock.Contains(key) ? 0 : 1, TimeSpan.FromMilliseconds(150)));
             if (!changed) return;
 
             if (_expanded) old?.OnDeactivated();
@@ -592,6 +630,9 @@ namespace Crest
             "ScreenTime" => new ScreenTimeView(),
             "AI" => new AiView(),
             "Message" => new MessageView(),
+            "Assistant" => new AssistantView(),
+            "Tools" => new ToolsView(),
+            "Search" => new SpotlightView(),
             _ => new SettingsView()
         };
 
@@ -1234,13 +1275,13 @@ namespace Crest
             });
         }
 
-        void OnBluetooth(string name, bool connected)
+        void OnBluetooth(string name, bool connected, int? battery)
         {
             if (!S.BluetoothAlerts) return;
             ShowToast(new Toast
             {
                 Kind = "bt", Glyph = BluetoothService.LooksLikeAudio(name) ? Glyphs.Headphone : Glyphs.Bluetooth, GlyphBrush = Ui.Res("BlueBrush"),
-                Title = name, Value = connected ? "Connected" : "Disconnected", ValueBrush = connected ? Ui.Res("GreenBrush") : Ui.Res("Text2Brush"),
+                Title = name, Value = connected ? (battery.HasValue ? $"{battery}%" : "Connected") : "Disconnected", Battery = connected ? battery : null, ValueBrush = connected ? Ui.Res("GreenBrush") : Ui.Res("Text2Brush"),
                 Duration = TimeSpan.FromSeconds(2.8)
             });
         }

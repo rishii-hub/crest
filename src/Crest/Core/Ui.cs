@@ -19,7 +19,7 @@ namespace Crest.Core
         public const string Left = "", Right = "", Globe = "", Document = "", OpenFolder = "";
         public const string Reset = "", Skip = "", Flag = "", Check = "", Location = "", Link = "";
         public const string Battery = "", Power = "", Mail = "";
-        public const string Calculator = "\uE8EF", ScreenTime = "\uE823", Robot = "\uE99A", Message = "\uE8BD", Swap = "\uE8AB", Paste = "\uE77F", OpenFile = "\uE8E5", Wifi = "\uE701", Download = "\uE896";
+        public const string Calculator = "\uE8EF", ScreenTime = "\uE823", Robot = "\uE99A", Message = "\uE8BD", Swap = "\uE8AB", Paste = "\uE77F", OpenFile = "\uE8E5", Wifi = "\uE701", Download = "\uE896", Chat = "\uE8F2", Tools = "\uE90F", Record = "\uE7C8", Alarm = "\uEA8F", Script = "\uE756", Phone = "\uE8EA", Dnd = "\uE708";
     }
 
     public static class Ui

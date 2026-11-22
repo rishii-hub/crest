@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows.Threading;
 using Crest.Core;
 using WinBt = global::Windows.Devices.Bluetooth;
@@ -12,14 +13,16 @@ namespace Crest.Services
     {
         public static BluetoothService Instance { get; } = new BluetoothService();
         const string ConnectedProp = "System.Devices.Aep.IsConnected";
+        const string ContainerProp = "System.Devices.Aep.ContainerId";
+        readonly Dictionary<string, Guid> _containers = new Dictionary<string, Guid>();
 
         Dispatcher _ui = null!;
         readonly List<WinDev.DeviceWatcher> _watchers = new List<WinDev.DeviceWatcher>();
         readonly Dictionary<string, (string Name, bool Connected)> _devices = new Dictionary<string, (string, bool)>();
         readonly HashSet<WinDev.DeviceWatcher> _ready = new HashSet<WinDev.DeviceWatcher>();
 
-        /// <summary>(device name, connected) on the UI thread.</summary>
-        public event Action<string, bool>? Changed;
+        /// <summary>(device name, connected, battery % if the driver exposes it) on the UI thread.</summary>
+        public event Action<string, bool, int?>? Changed;
 
         public void Init(Dispatcher ui)
         {
@@ -34,13 +37,14 @@ namespace Crest.Services
 
         void Watch(string selector)
         {
-            var w = WinDev.DeviceInformation.CreateWatcher(selector, new[] { ConnectedProp }, WinDev.DeviceInformationKind.AssociationEndpoint);
+            var w = WinDev.DeviceInformation.CreateWatcher(selector, new[] { ConnectedProp, ContainerProp }, WinDev.DeviceInformationKind.AssociationEndpoint);
             w.Added += (s, info) =>
             {
                 bool c = Read(info.Properties);
                 string name = info.Name ?? "Bluetooth device";
                 string id = info.Id;
-                _ui.BeginInvoke(new Action(() => _devices[id] = (name, c)));
+                Guid? container = info.Properties.TryGetValue(ContainerProp, out var cv) && cv is Guid g ? g : null;
+                _ui.BeginInvoke(new Action(() => { _devices[id] = (name, c); if (container.HasValue) _containers[id] = container.Value; }));
             };
             w.Updated += (s, upd) =>
             {
@@ -52,7 +56,18 @@ namespace Crest.Services
                     if (!_devices.TryGetValue(id, out var d)) return;
                     if (d.Connected == c) return;
                     _devices[id] = (d.Name, c);
-                    if (_ready.Contains(w)) Changed?.Invoke(d.Name, c);
+                    if (!_ready.Contains(w)) return;
+                    if (c && _containers.TryGetValue(id, out var cont))
+                    {
+                        var name = d.Name;
+                        _ = Task.Run(async () =>
+                        {
+                            await Task.Delay(1500); // drivers report battery a moment after connecting
+                            var pct = await BluetoothBattery.ForContainerAsync(cont);
+                            _ui.BeginInvoke(new Action(() => Changed?.Invoke(name, true, pct)));
+                        });
+                    }
+                    else Changed?.Invoke(d.Name, c, null);
                 }));
             };
             w.Removed += (s, upd) => { string id = upd.Id; _ui.BeginInvoke(new Action(() => _devices.Remove(id))); };

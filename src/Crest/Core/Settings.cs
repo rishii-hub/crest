@@ -54,6 +54,24 @@ namespace Crest.Core
         // Units
         public string UnitCategory { get; set; } = "Currency";
 
+        // Alarms
+        public List<AlarmItem> Alarms { get; set; } = new List<AlarmItem>();
+
+        // Assistant (strictly opt-in: nothing is sent anywhere until a provider is configured)
+        public string AiProvider { get; set; } = "Off";      // Off | Ollama | OpenAI | Anthropic
+        public string AiEndpoint { get; set; } = "";
+        public string AiModel { get; set; } = "";
+        public string AiKeyProtected { get; set; } = "";     // DPAPI-encrypted for the current Windows user
+
+        // Automations
+        public List<AutomationItem> Automations { get; set; } = new List<AutomationItem>();
+
+        // Phase 3
+        public bool FocusAssistHud { get; set; } = true;
+        public bool LanDrop { get; set; } = false;
+        public bool MirrorNotifications { get; set; } = true;
+        public Dictionary<string, int> LaunchCounts { get; set; } = new Dictionary<string, int>();
+
         // Clipboard
         public bool ClipboardHistory { get; set; } = true;
 
@@ -88,6 +106,26 @@ namespace Crest.Core
         public bool AutoUpdateCheck { get; set; } = true;
         public DateTime? LastUpdateCheck { get; set; }
         public string NotifiedVersion { get; set; } = "";
+    }
+
+    public sealed class AlarmItem
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString("N").Substring(0, 8);
+        public int Hour { get; set; } = 7;
+        public int Minute { get; set; }
+        public string Label { get; set; } = "Alarm";
+        public bool Enabled { get; set; } = true;
+        /// <summary>Bitmask of weekdays (bit 0 = Sunday). 0 = ring once.</summary>
+        public int Days { get; set; }
+        public string LastFired { get; set; } = "";
+    }
+
+    public sealed class AutomationItem
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString("N").Substring(0, 8);
+        public string Name { get; set; } = "";
+        public string Path { get; set; } = "";
+        public string Args { get; set; } = "";
     }
 
     public static class SettingsStore
