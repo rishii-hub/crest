@@ -101,7 +101,7 @@ namespace Crest.Views
     {
         readonly TextBlock _total = Kit.Big("", 28), _left = Kit.Big("", 17), _apps = Kit.Big("", 28);
         readonly TextBlock _leftSub = Kit.Small(), _avg = Kit.Small();
-        readonly RingProgress _ring = new RingProgress { Width = 46, Height = 46, Thickness = 5 };
+        readonly RingProgress _ring = new RingProgress { Width = 40, Height = 40, Thickness = 5 };
         readonly Bars _week = new Bars();
         readonly StackPanel _list = new StackPanel();
         readonly DispatcherTimer _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
@@ -112,14 +112,14 @@ namespace Crest.Views
             var root = Kit.Cols(1.45, 1);
             var left = Kit.Rows(new Grid(), 0, 1);
 
-            var today = Kit.Cols(1, 1.25, 1);
+            var today = Kit.Cols(0.8, 1.6, 0.7);
             var a = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
             a.Children.Add(_total); a.Children.Add(Kit.Small("Screen time"));
             var limitRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
             limitRow.Children.Add(_ring);
             var ls = new StackPanel { Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             ls.Children.Add(_left);
-            var limitStep = new Stepper(v => v == 0 ? "No limit" : $"Limit {ScreenTimeService.Format(v * 60)}", SettingsStore.Current.ScreenLimitMin, 0, 960, 30) { Height = 30, Width = 140, Margin = new Thickness(0, 3, 0, 0) };
+            var limitStep = new Stepper(v => v == 0 ? "No limit" : $"Limit {ScreenTimeService.Format(v * 60)}", SettingsStore.Current.ScreenLimitMin, 0, 960, 30) { Height = 30, Width = 128, Margin = new Thickness(0, 3, 0, 0) };
             limitStep.Changed += v => { SettingsStore.Current.ScreenLimitMin = v; SettingsStore.Save(); Refresh(); };
             ls.Children.Add(limitStep);
             limitRow.Children.Add(ls);
@@ -161,6 +161,7 @@ namespace Crest.Views
                 _left.Text = total >= limit ? "Limit reached" : ScreenTimeService.Format(limit - total) + " left";
             }
             else { _ring.Progress = 0; _left.Text = "Daily limit"; }
+            _ring.Visibility = limit > 0 ? Visibility.Visible : Visibility.Collapsed;
 
             var week = st.Week();
             _week.Set(week.Select(w => (double)w.Seconds).ToArray(), week.Select(w => w.Day.ToString("ddd")).ToArray(), 6);
@@ -194,7 +195,7 @@ namespace Crest.Views
     // ===================================================================== AI Coding
     public sealed class AiView : UserControl, ITabView
     {
-        readonly TextBlock _tokens = Kit.Big("", 30), _tokSub = Kit.Small(), _msgs = Kit.Big("", 20), _tools = Kit.Big("", 20), _sessions = Kit.Big("", 20);
+        readonly TextBlock _tokens = Kit.Big("", 28), _tokSub = Kit.Small(), _msgs = Kit.Big("", 20), _tools = Kit.Big("", 20), _sessions = Kit.Big("", 20);
         readonly TextBlock _status = Kit.Small();
         readonly Bars _hours = new Bars(), _week = new Bars();
         readonly StackPanel _models = new StackPanel(), _projects = new StackPanel();
@@ -222,13 +223,16 @@ namespace Crest.Views
             root.Children.Add(top);
 
             var body = Kit.Rows(Kit.Cols(1.2, 1), 1, 1);
-            var today = new StackPanel();
+            var today = Kit.Cols(1.1, 1);
+            var tokCol = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             var tline = new StackPanel { Orientation = Orientation.Horizontal };
             tline.Children.Add(_tokens);
             tline.Children.Add(new TextBlock { Text = " tokens", FontSize = 13, Foreground = Ui.Res("Text2Brush"), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 6) });
-            today.Children.Add(tline);
-            today.Children.Add(_tokSub);
-            var stats = new UniformGrid { Columns = 3, Margin = new Thickness(0, 10, 0, 0) };
+            tokCol.Children.Add(tline);
+            _tokSub.TextWrapping = TextWrapping.Wrap;
+            tokCol.Children.Add(_tokSub);
+            today.Children.Add(Kit.At(tokCol, 0));
+            var stats = new UniformGrid { Columns = 3, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
             foreach (var (val, label) in new[] { (_msgs, "Messages"), (_tools, "Tool calls"), (_sessions, "Sessions") })
             {
                 var sp = new StackPanel();
@@ -236,7 +240,7 @@ namespace Crest.Views
                 sp.Children.Add(Kit.Small(label));
                 stats.Children.Add(sp);
             }
-            today.Children.Add(stats);
+            today.Children.Add(Kit.At(stats, 1));
             body.Children.Add(Kit.At(Kit.Card(today, "Today"), 0, 0));
 
             var models = new DockPanel();

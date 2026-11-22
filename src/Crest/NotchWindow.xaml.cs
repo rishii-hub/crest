@@ -819,6 +819,7 @@ namespace Crest
                     LeftGlyph.Visibility = Visibility.Visible;
                     LeftGlyph.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
                     LeftText.Text = a.Value.Label;
+                    LeftText.Margin = new Thickness(7, 0, 0, 0);
                     LeftText.Visibility = Visibility.Visible;
                     LeftText.Foreground = Ui.Res("Text2Brush");
                     RightText.Text = a.Value.Time;
