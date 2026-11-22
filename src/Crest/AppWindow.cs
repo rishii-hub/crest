@@ -49,6 +49,9 @@ namespace Crest
             _ => ""
         };
 
+        /// <summary>Dashboard-style pages that look best at their designed height rather than stretched.</summary>
+        static readonly HashSet<string> FixedHeight = new HashSet<string> { "Home", "Timers", "System", "Weather", "Clock", "Tools", "AI", "Message", "Units", "ScreenTime" };
+
         readonly Dictionary<string, FrameworkElement> _views = new Dictionary<string, FrameworkElement>();
         readonly Dictionary<string, Border> _items = new Dictionary<string, Border>();
         readonly ContentControl _host = new ContentControl { Focusable = false };
@@ -215,7 +218,7 @@ namespace Crest
             var row = new StackPanel { Orientation = Orientation.Horizontal };
             row.Children.Add(g);
             row.Children.Add(t);
-            var b = new Border { Height = 34, CornerRadius = new CornerRadius(10), Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 1, 0, 1), Background = Brushes.Transparent, Child = row, Cursor = Cursors.Hand };
+            var b = new Border { Height = 32, CornerRadius = new CornerRadius(10), Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 1, 0, 1), Background = Brushes.Transparent, Child = row, Cursor = Cursors.Hand };
             b.MouseEnter += (s, e) => { if (_page != key) b.Background = Ui.Res("Card2Brush"); };
             b.MouseLeave += (s, e) => { if (_page != key) b.Background = Brushes.Transparent; };
             b.MouseLeftButtonUp += (s, e) => Select(key);
@@ -251,6 +254,7 @@ namespace Crest
             {
                 try { view = NotchWindow.CreateViewFor(key); }
                 catch (Exception ex) { Log.Error("view " + key, ex); view = new TextBlock { Text = "This page failed to load. See crest.log." }; }
+                if (FixedHeight.Contains(key)) { view.MaxHeight = 420; view.VerticalAlignment = VerticalAlignment.Top; }
                 _views[key] = view;
             }
             _host.Content = view;

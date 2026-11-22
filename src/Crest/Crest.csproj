@@ -14,7 +14,7 @@
     <AssemblyName>Crest</AssemblyName>
     <ApplicationIcon>Assets\crest.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>1.5.0</Version>
+    <Version>1.6.0</Version>
     <Product>Crest</Product>
     <Description>An open-source Dynamic Island / notch for Windows</Description>
     <Company>Crest contributors</Company>

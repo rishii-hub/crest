@@ -12,11 +12,11 @@ Native, open source, no account, no telemetry.</p>
   <a href="#build-from-source">Build</a>
 </p>
 
-<p align="center"><img src="docs/screenshots/tab-home.png" width="760" alt="Crest expanded"/></p>
+<p align="center"><img src="docs/screenshots/island-home.png" width="620" alt="The Crest island"/></p>
 
 ---
 
-Crest puts a small black notch at the top of your screen. It stays out of the way, shows live activities the way an iPhone or MacBook does (music, timers, volume, charging, AirPods-style Bluetooth pop-ups, camera/mic indicators), and opens into a control centre when you hover it.
+Crest puts a small black notch at the top of your screen. It stays out of the way, shows live activities the way an iPhone or MacBook does (music, timers, volume, charging, AirPods-style Bluetooth pop-ups, camera/mic indicators), and opens into a small, minimal island when you hover it. Everything bigger (clipboard history, notes, weather, system stats, settings and the rest) lives in the separate **Crest app** window, so the island never gets cluttered.
 
 It is a native WPF app on .NET 8. No Electron, no browser engine in the background.
 
@@ -45,10 +45,23 @@ It is a native WPF app on .NET 8. No Electron, no browser engine in the backgrou
 
 **Two at once.** When two activities run together (a timer and music, say), the notch splits into a main pill and a small bubble beside it, like the iPhone. Swipe an activity sideways (mouse, touch or pen) to hide it; it keeps running. Pull the notch down to pop a tab out as a floating widget.
 
-### Expanded notch (hover or click)
-A header shows the current tab and a subtitle. A bottom dock holds your modules, and its white pill slides and stretches between tabs. Content slides in from the side you moved towards, and the mouse wheel over the dock flips tabs.
+### The island (hover or click)
+Small and quiet, like the Mac notch apps: a row of tiny page icons with a sliding pill, a pin and a button that opens the Crest app. Each page has its own size and the island morphs between them.
 
-| Tab | What it does |
+| Island page | |
+|---|---|
+| **Now** | Album art, title, controls and a seek bar, plus the time, weather, battery and your next timer or alarm. |
+| **Shelf** | Drop files on the island, drag them out later. |
+| **Timers** | One-tap 1–45 minute timers, or Pomodoro. |
+| **Clipboard** | Your latest copies; click one to copy it again (`Ctrl+Alt+V`). |
+| **Links** | Pinned apps and sites. |
+
+Pick which pages the island shows in *Crest → Island*. `Ctrl+Alt+Space` opens search in the island.
+
+### The Crest app (tray icon, or the ⊞ button on the island)
+A normal window with a sidebar, like the Mac notch apps' settings windows, holding every feature at full size and all settings. Any page can be popped out as a floating widget.
+
+| Page | What it does |
 |---|---|
 | **Search** (`Ctrl+Alt+Space`) | Spotlight for Windows: Start-menu and Store apps (learns what you open), Settings pages, recent files, math (`(12*7+16)/4`), unit and currency conversion (`10 km to mi`, `100 usd in inr`), web search. Arrow keys + Enter; Esc puts focus back where it was. |
 | **Assistant** | Opt-in AI prompt bar with streaming replies: local **Ollama**, any OpenAI-compatible endpoint, or Anthropic, with your own key (encrypted with Windows DPAPI). Off by default. Also understands `/timer 10m`, `/alarm 7:30`, `/note`, `/todo`, `/volume 40`, `/open`, `/search` without any AI configured. |
@@ -66,7 +79,7 @@ A header shows the current tab and a subtitle. A bottom dock holds your modules,
 | **Screen Time** | Per-app foreground time today, last 7 days, optional daily limit with a notch alert. Only app names are recorded, never window titles or content. |
 | **AI Coding** | Today's Claude Code and Codex token usage, messages, tool calls, sessions, active hours, per-model and 7-day breakdown. Read from the logs those tools already keep on your PC. No prices are guessed. |
 | **Message** | Flash your own text on the notch (type-on, scroll or pulse; your colour; 3–30 s). |
-| **Settings** | Theme, background, font and eyes; Notch or Island style; visibility Always / Smart (tucks away over maximized apps) / Minimal / Hidden; time & battery in the notch corners; outline; shadow; accent and music colours; module on/off; backup export & import. |
+| **Appearance · Island · General** | Theme, background, font and eyes; Notch or Island style; visibility Always / Smart (tucks away over maximized apps) / Minimal / Hidden; time & battery in the notch corners; outline; shadow; accent and music colours; module on/off; backup export & import. |
 
 ### Themes, backgrounds and eyes
 - **Eight themes:** Dark (pure black), Light, Graphite, Midnight, Forest, plus **Vivid** and **Sunset**, which put a slowly moving aurora behind frosted-glass cards. **Custom** takes any panel colour (light colours switch the text to dark automatically) and any accent.
@@ -110,17 +123,20 @@ Or from anything that can start a process: `Crest.exe --activity "{\"id\":\"buil
 | `actions` | up to two buttons; clicks come back on the same pipe as `{"event":"action","id":"build","action":"cancel"}` |
 
 ## Screenshots
+Island pages:
+
+<p><img src="docs/screenshots/island-timers.png" width="49%"/> <img src="docs/screenshots/island-shelf.png" width="49%"/></p>
+
+The Crest app:
+
 <table>
-<tr><td><img src="docs/screenshots/tab-timers.png" alt="Timers"/></td><td><img src="docs/screenshots/tab-weather.png" alt="Weather"/></td></tr>
-<tr><td><img src="docs/screenshots/tab-shelf.png" alt="Shelf"/></td><td><img src="docs/screenshots/tab-clipboard.png" alt="Clipboard"/></td></tr>
-<tr><td><img src="docs/screenshots/tab-system.png" alt="System"/></td><td><img src="docs/screenshots/tab-clock.png" alt="Clock"/></td></tr>
-<tr><td><img src="docs/screenshots/tab-notes.png" alt="Notes"/></td><td><img src="docs/screenshots/tab-settings.png" alt="Settings"/></td></tr>
-<tr><td><img src="docs/screenshots/tab-screentime.png" alt="Screen Time"/></td><td><img src="docs/screenshots/tab-units.png" alt="Units"/></td></tr>
+<tr><td><img src="docs/screenshots/app-appearance.png" alt="Appearance"/></td><td><img src="docs/screenshots/app-weather.png" alt="Weather"/></td></tr>
+<tr><td><img src="docs/screenshots/app-clipboard.png" alt="Clipboard"/></td><td><img src="docs/screenshots/app-system.png" alt="System"/></td></tr>
+<tr><td><img src="docs/screenshots/app-timers.png" alt="Timers"/></td><td><img src="docs/screenshots/app-tools.png" alt="Tools"/></td></tr>
 </table>
 
 <table>
-<tr><td><img src="docs/screenshots/search-apps.png" alt="Search"/></td><td><img src="docs/screenshots/tab-tools.png" alt="Tools"/></td></tr>
-<tr><td><img src="docs/screenshots/tab-assistant.png" alt="Assistant"/></td><td><img src="docs/screenshots/tab-alarms.png" alt="Alarms"/></td></tr>
+<tr><td><img src="docs/screenshots/search-apps.png" alt="Search"/></td><td><img src="docs/screenshots/app-assistant.png" alt="Assistant"/></td></tr>
 </table>
 
 Live activities: <img src="docs/screenshots/split-pill.png" height="70"/> <img src="docs/screenshots/live-alarm.png" height="70"/> <img src="docs/screenshots/live-pipe.png" height="70"/> <img src="docs/screenshots/live-drop.png" height="70"/> <img src="docs/screenshots/live-charging.png" height="70"/> <img src="docs/screenshots/live-bluetooth.png" height="70"/> <img src="docs/screenshots/live-timer.png" height="70"/> <img src="docs/screenshots/live-volume.png" height="70"/>
