@@ -65,7 +65,7 @@ namespace Crest.Views
         public string[] Labels = Array.Empty<string>();
         public int Highlight = -1;
         public Brush? BarBrush;
-        static readonly Brush Dim = Ui.Brush("#33FFFFFF");
+        readonly Brush Dim = Ui.Res("TrackBrush");
 
         public void Set(double[] values, string[] labels, int highlight) { Values = values; Labels = labels; Highlight = highlight; InvalidateVisual(); }
 
@@ -89,7 +89,7 @@ namespace Crest.Views
                 if (i < Labels.Length && !string.IsNullOrEmpty(Labels[i]))
                 {
                     var ft = new FormattedText(Labels[i], System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-                        new Typeface("Segoe UI"), 10, i == Highlight ? Brushes.White : Ui.Res("Text3Brush"), dpi);
+                        new Typeface("Segoe UI"), 10, i == Highlight ? Ui.Res("TextBrush") : Ui.Res("Text3Brush"), dpi);
                     dc.DrawText(ft, new Point(i * slot + (slot - ft.Width) / 2, h - labelH + 2));
                 }
             }
@@ -181,7 +181,7 @@ namespace Crest.Views
                     : new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(6), Background = Ui.Res("HoverBrush"), Margin = new Thickness(0, 0, 10, 0) }, 0));
                 var mid = new StackPanel();
                 mid.Children.Add(new TextBlock { Text = st.FriendlyName(exe), FontSize = 12.5, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
-                mid.Children.Add(new ProgressLine { Value = secs / (double)max, Brush = Brushes.White, Margin = new Thickness(0, 4, 0, 0), Height = 4 });
+                mid.Children.Add(new ProgressLine { Value = secs / (double)max, Brush = Ui.Res("TextBrush"), Margin = new Thickness(0, 4, 0, 0), Height = 4 });
                 row.Children.Add(Kit.At(mid, 1));
                 var right = new StackPanel { Margin = new Thickness(10, 0, 0, 0) };
                 right.Children.Add(new TextBlock { Text = ScreenTimeService.Format(secs), FontSize = 12, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Right });
@@ -369,7 +369,7 @@ namespace Crest.Views
                 {
                     S.MsgColor = h; SettingsStore.Save();
                     foreach (Grid o in colors.Children) ((System.Windows.Shapes.Ellipse)o.Children[0]).Stroke = Brushes.Transparent;
-                    ring.Stroke = Brushes.White;
+                    ring.Stroke = Ui.Res("TextBrush");
                 };
                 colors.Children.Add(g);
             }

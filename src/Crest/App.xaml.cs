@@ -47,7 +47,7 @@ namespace Crest
             TaskScheduler.UnobservedTaskException += (s, ex) => { Log.Error("task", ex.Exception); ex.SetObserved(); };
 
             SettingsStore.Load();
-            Ui.ApplyAccent(SettingsStore.Current.Accent);
+            ThemeService.Apply();
 
             var notch = new NotchWindow();
             notch.Show();

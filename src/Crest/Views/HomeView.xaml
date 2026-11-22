@@ -29,15 +29,15 @@
                 <BlurEffect Radius="18"/>
               </Border.Effect>
             </Border>
-            <Border x:Name="ArtBox" CornerRadius="16" Background="{StaticResource Card2Brush}">
-              <TextBlock x:Name="ArtPlaceholder" Style="{StaticResource Icon}" Text="&#xE8D6;" FontSize="34" Foreground="{StaticResource Text3Brush}"/>
+            <Border x:Name="ArtBox" CornerRadius="16" Background="{DynamicResource Card2Brush}">
+              <TextBlock x:Name="ArtPlaceholder" Style="{StaticResource Icon}" Text="&#xE8D6;" FontSize="34" Foreground="{DynamicResource Text3Brush}"/>
             </Border>
           </Grid>
           <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-            <TextBlock x:Name="AppText" FontSize="11" Foreground="{StaticResource Text3Brush}" Text="NOW PLAYING"/>
-            <TextBlock x:Name="TitleText" FontSize="18" FontWeight="SemiBold" FontFamily="{StaticResource DisplayFont}"
+            <TextBlock x:Name="AppText" FontSize="11" Foreground="{DynamicResource Text3Brush}" Text="NOW PLAYING"/>
+            <TextBlock x:Name="TitleText" FontSize="18" FontWeight="SemiBold" FontFamily="{DynamicResource DisplayFont}"
                        TextTrimming="CharacterEllipsis" Margin="0,4,0,0" Text="Nothing playing"/>
-            <TextBlock x:Name="ArtistText" FontSize="13" Foreground="{StaticResource Text2Brush}" TextTrimming="CharacterEllipsis"
+            <TextBlock x:Name="ArtistText" FontSize="13" Foreground="{DynamicResource Text2Brush}" TextTrimming="CharacterEllipsis"
                        Margin="0,3,0,0" Text="Play something in Spotify, a browser or any media app"/>
           </StackPanel>
         </Grid>
@@ -59,9 +59,9 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="40"/>
           </Grid.ColumnDefinitions>
-          <TextBlock x:Name="PosText" Style="{StaticResource Num}" FontSize="11" Foreground="{StaticResource Text3Brush}" VerticalAlignment="Center" Text="0:00"/>
+          <TextBlock x:Name="PosText" Style="{StaticResource Num}" FontSize="11" Foreground="{DynamicResource Text3Brush}" VerticalAlignment="Center" Text="0:00"/>
           <Slider x:Name="SeekSlider" Grid.Column="1" Style="{StaticResource Thin}" Minimum="0" Maximum="1" Margin="4,0"/>
-          <TextBlock x:Name="DurText" Grid.Column="2" Style="{StaticResource Num}" FontSize="11" Foreground="{StaticResource Text3Brush}"
+          <TextBlock x:Name="DurText" Grid.Column="2" Style="{StaticResource Num}" FontSize="11" Foreground="{DynamicResource Text3Brush}"
                      VerticalAlignment="Center" HorizontalAlignment="Right" Text="0:00"/>
         </Grid>
 
@@ -83,25 +83,25 @@
 
       <Grid Margin="4,0,4,6">
         <StackPanel>
-          <TextBlock x:Name="ClockText" FontFamily="{StaticResource DisplayFont}" FontSize="34" FontWeight="Light" Text="00:00"
+          <TextBlock x:Name="ClockText" FontFamily="{DynamicResource DisplayFont}" FontSize="34" FontWeight="Light" Text="00:00"
                      Typography.NumeralAlignment="Tabular"/>
-          <TextBlock x:Name="DateText" FontSize="12" Foreground="{StaticResource Text2Brush}" Margin="1,-3,0,0"/>
+          <TextBlock x:Name="DateText" FontSize="12" Foreground="{DynamicResource Text2Brush}" Margin="1,-3,0,0"/>
         </StackPanel>
         <Button x:Name="WeatherMini" Style="{StaticResource Pill}" Background="Transparent" HorizontalAlignment="Right" VerticalAlignment="Top"
                 Padding="8,2" ToolTip="Weather">
           <StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
               <TextBlock x:Name="WeatherSymbol" FontFamily="{StaticResource EmojiFont}" FontSize="19" VerticalAlignment="Center" Text="☁"/>
-              <TextBlock x:Name="WeatherTemp" FontFamily="{StaticResource DisplayFont}" FontSize="19" Margin="6,0,0,0" VerticalAlignment="Center" Text="--°"/>
+              <TextBlock x:Name="WeatherTemp" FontFamily="{DynamicResource DisplayFont}" FontSize="19" Margin="6,0,0,0" VerticalAlignment="Center" Text="--°"/>
             </StackPanel>
-            <TextBlock x:Name="WeatherCity" FontSize="10.5" Foreground="{StaticResource Text3Brush}" HorizontalAlignment="Right" Text="Set location"/>
+            <TextBlock x:Name="WeatherCity" FontSize="10.5" Foreground="{DynamicResource Text3Brush}" HorizontalAlignment="Right" Text="Set location"/>
           </StackPanel>
         </Button>
       </Grid>
 
       <UniformGrid Grid.Row="1" Columns="3" Margin="0,0,0,6">
         <!-- System rings -->
-        <Button x:Name="SysWidget" Style="{StaticResource Tile}" Height="Auto" Background="{StaticResource CardBrush}" ToolTip="System">
+        <Button x:Name="SysWidget" Style="{StaticResource Tile}" Height="Auto" Background="{DynamicResource CardBrush}" ToolTip="System">
           <StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
               <Grid Width="38" Height="38" Margin="0,0,6,0">
@@ -109,34 +109,34 @@
                 <TextBlock x:Name="CpuText" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Grid>
               <Grid Width="38" Height="38">
-                <c:RingProgress x:Name="RamRing" Thickness="4" RingBrush="{StaticResource CyanBrush}"/>
+                <c:RingProgress x:Name="RamRing" Thickness="4" RingBrush="{DynamicResource CyanBrush}"/>
                 <TextBlock x:Name="RamText" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Grid>
             </StackPanel>
-            <TextBlock Text="CPU · RAM" FontSize="10.5" Foreground="{StaticResource Text2Brush}" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+            <TextBlock Text="CPU · RAM" FontSize="10.5" Foreground="{DynamicResource Text2Brush}" HorizontalAlignment="Center" Margin="0,6,0,0"/>
           </StackPanel>
         </Button>
         <!-- Focus -->
-        <Button x:Name="FocusWidget" Style="{StaticResource Tile}" Height="Auto" Background="{StaticResource CardBrush}" ToolTip="Click: start / pause Pomodoro">
+        <Button x:Name="FocusWidget" Style="{StaticResource Tile}" Height="Auto" Background="{DynamicResource CardBrush}" ToolTip="Click: start / pause Pomodoro">
           <StackPanel>
-            <TextBlock x:Name="FocusTime" FontFamily="{StaticResource DisplayFont}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center"
+            <TextBlock x:Name="FocusTime" FontFamily="{DynamicResource DisplayFont}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center"
                        Typography.NumeralAlignment="Tabular" Text="25:00"/>
-            <TextBlock x:Name="FocusLabel" FontSize="10.5" Foreground="{StaticResource Text2Brush}" HorizontalAlignment="Center" Text="Focus"/>
+            <TextBlock x:Name="FocusLabel" FontSize="10.5" Foreground="{DynamicResource Text2Brush}" HorizontalAlignment="Center" Text="Focus"/>
             <TextBlock x:Name="FocusGlyph" Style="{StaticResource Icon}" FontSize="12" Margin="0,5,0,0" Foreground="{DynamicResource AccentBrush}" Text="&#xE768;"/>
           </StackPanel>
         </Button>
         <!-- Screen time -->
-        <Button x:Name="ScreenWidget" Style="{StaticResource Tile}" Height="Auto" Background="{StaticResource CardBrush}" ToolTip="Screen Time">
+        <Button x:Name="ScreenWidget" Style="{StaticResource Tile}" Height="Auto" Background="{DynamicResource CardBrush}" ToolTip="Screen Time">
           <StackPanel>
-            <TextBlock x:Name="ScreenTotal" FontFamily="{StaticResource DisplayFont}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" Text="0m"/>
-            <TextBlock FontSize="10.5" Foreground="{StaticResource Text2Brush}" HorizontalAlignment="Center" Text="Screen time"/>
-            <TextBlock x:Name="ScreenTop" FontSize="10.5" Foreground="{StaticResource Text3Brush}" HorizontalAlignment="Center" Margin="0,4,0,0"
+            <TextBlock x:Name="ScreenTotal" FontFamily="{DynamicResource DisplayFont}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" Text="0m"/>
+            <TextBlock FontSize="10.5" Foreground="{DynamicResource Text2Brush}" HorizontalAlignment="Center" Text="Screen time"/>
+            <TextBlock x:Name="ScreenTop" FontSize="10.5" Foreground="{DynamicResource Text3Brush}" HorizontalAlignment="Center" Margin="0,4,0,0"
                        TextTrimming="CharacterEllipsis" MaxWidth="90"/>
           </StackPanel>
         </Button>
       </UniformGrid>
 
-      <Border Grid.Row="2" Background="{StaticResource CardBrush}" CornerRadius="16" Padding="10,8" Margin="3,0,3,0">
+      <Border Grid.Row="2" Background="{DynamicResource CardBrush}" CornerRadius="16" Padding="10,8" Margin="3,0,3,0">
         <StackPanel>
           <UniformGrid Columns="5" Margin="0,0,0,6">
             <ToggleButton x:Name="AwakeTile" Style="{StaticResource TileToggle}" Height="34" Margin="2" ToolTip="Keep awake — stop the PC and screen sleeping">
@@ -163,7 +163,7 @@
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="VolGlyph" Style="{StaticResource Icon}" Text="&#xE995;" FontSize="13" HorizontalAlignment="Left"/>
             <Slider x:Name="VolSlider" Grid.Column="1" Style="{StaticResource Thin}" Minimum="0" Maximum="100"/>
-            <TextBlock x:Name="VolText" Grid.Column="2" Style="{StaticResource Num}" FontSize="11" Foreground="{StaticResource Text2Brush}"
+            <TextBlock x:Name="VolText" Grid.Column="2" Style="{StaticResource Num}" FontSize="11" Foreground="{DynamicResource Text2Brush}"
                        HorizontalAlignment="Right" VerticalAlignment="Center"/>
           </Grid>
           <Grid x:Name="BriRow" Margin="4,2,4,0">
@@ -174,7 +174,7 @@
             </Grid.ColumnDefinitions>
             <TextBlock Style="{StaticResource Icon}" Text="&#xE706;" FontSize="13" HorizontalAlignment="Left"/>
             <Slider x:Name="BriSlider" Grid.Column="1" Style="{StaticResource Thin}" Minimum="0" Maximum="100"/>
-            <TextBlock x:Name="BriText" Grid.Column="2" Style="{StaticResource Num}" FontSize="11" Foreground="{StaticResource Text2Brush}"
+            <TextBlock x:Name="BriText" Grid.Column="2" Style="{StaticResource Num}" FontSize="11" Foreground="{DynamicResource Text2Brush}"
                        HorizontalAlignment="Right" VerticalAlignment="Center"/>
           </Grid>
         </StackPanel>

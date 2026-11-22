@@ -213,6 +213,70 @@ namespace Crest
                 await Task.Delay(1400); Capture("idle-corners");
                 SettingsStore.Update(x => x.RestingInfo = "None");
                 await Task.Delay(800);
+
+                // Eyes in the resting notch, one per style, then asleep
+                foreach (var kind in Controls.NotchEyes.Styles)
+                {
+                    SettingsStore.Update(x => { x.Eyes = kind; x.EyesSleep = false; });
+                    await Task.Delay(900); Capture("eyes-" + kind.ToLowerInvariant());
+                }
+                SettingsStore.Update(x => { x.EyesSleep = true; x.RestingInfo = "Corners"; });
+                await Task.Delay(4500); Capture("eyes-asleep");
+                SettingsStore.Update(x => { x.Eyes = "Off"; x.RestingInfo = "None"; });
+                await Task.Delay(600);
+
+                // Themes
+                foreach (var theme in new[] { "Light", "Vivid", "Midnight", "Sunset" })
+                {
+                    SettingsStore.Update(x => ThemeService.Choose(theme));
+                    Expand("Home");
+                    PinButton.IsChecked = true;
+                    await Task.Delay(1600); Capture("theme-" + theme.ToLowerInvariant());
+                    if (theme == "Light" || theme == "Vivid")
+                    {
+                        SelectTab("Settings");
+                        await Task.Delay(1200); Capture("theme-" + theme.ToLowerInvariant() + "-settings");
+                        SelectTab("Timers");
+                        await Task.Delay(1000); Capture("theme-" + theme.ToLowerInvariant() + "-timers");
+                    }
+                    PinButton.IsChecked = false;
+                    Collapse();
+                    await Task.Delay(800);
+                }
+
+                // Your own background: a picture, then an animated GIF
+                var wall = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), @"Web\Wallpaper\Windows\img0.jpg");
+                if (File.Exists(wall))
+                {
+                    SettingsStore.Update(x => { ThemeService.Choose("Custom"); x.CustomPanel = "#101014"; x.Backdrop = "Media"; x.BgPath = wall; x.BgDim = 35; });
+                    Expand("Home"); PinButton.IsChecked = true;
+                    await Task.Delay(1600); Capture("theme-picture");
+                    PinButton.IsChecked = false; Collapse();
+                    await Task.Delay(800);
+                }
+                var gif = Path.Combine(Path.GetTempPath(), "crest-tour.gif");
+                var enc = new System.Windows.Media.Imaging.GifBitmapEncoder();
+                for (int i = 0; i < 12; i++)
+                {
+                    var dv = new DrawingVisual();
+                    using (var dc = dv.RenderOpen())
+                    {
+                        dc.DrawRectangle(new LinearGradientBrush(Color.FromRgb(20, 10, 60), Color.FromRgb(120, 20, 90), 45), null, new Rect(0, 0, 320, 180));
+                        double a = i / 12.0 * 2 * Math.PI;
+                        dc.DrawEllipse(new SolidColorBrush(Color.FromRgb(255, 159, 10)), null, new Point(160 + 90 * Math.Cos(a), 90 + 50 * Math.Sin(a)), 28, 28);
+                    }
+                    var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(320, 180, 96, 96, PixelFormats.Pbgra32);
+                    rtb.Render(dv);
+                    enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
+                }
+                using (var fs = File.Create(gif)) enc.Save(fs);
+                SettingsStore.Update(x => { ThemeService.Choose("Custom"); x.CustomPanel = "#FCE7F3"; x.Backdrop = "Media"; x.BgPath = gif; x.BgDim = 20; });
+                Expand("Clock"); PinButton.IsChecked = true;
+                await Task.Delay(1800); Capture("theme-gif");
+                await Task.Delay(350); Capture("theme-gif-2");
+                PinButton.IsChecked = false; Collapse();
+                SettingsStore.Update(x => { ThemeService.Choose("Dark"); x.Backdrop = "None"; x.BgPath = ""; });
+                await Task.Delay(800);
                 Log.Write("tour: done");
             }
             catch (Exception ex) { Log.Error("tour", ex); }

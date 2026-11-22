@@ -183,6 +183,10 @@ namespace Crest
             };
             _msgTimer.Tick += (s, e) => MessageTick();
 
+            Shape.Fill = _fill;
+            Shape.ClipTarget = BackdropLayer;
+            _themeSig = ThemeService.Signature;
+            BackdropLayer.Configure();
             BuildTabs();
             SettingsStore.Changed += ApplySettings;
             SourceInitialized += OnSourceInitialized;
@@ -320,9 +324,48 @@ namespace Crest
         }
 
         // ================= settings / placement =================
+        // ---- theme ----
+        readonly SolidColorBrush _fill = new SolidColorBrush(Colors.Black);
+        Color _fillTarget = Colors.Black;
+        string _themeSig = "";
+
+        /// <summary>The notch is black (hardware look) when closed and takes the theme's panel colour when open.</summary>
+        void AnimateFill(Color to, int ms)
+        {
+            if (to == _fillTarget) return;
+            _fillTarget = to;
+            _fill.BeginAnimation(SolidColorBrush.ColorProperty, new ColorAnimation(to, TimeSpan.FromMilliseconds(ms)) { EasingFunction = new QuadraticEase() });
+        }
+
+        /// <summary>Code-built views read brushes when they're created, so a new theme rebuilds them.</summary>
+        void RebuildViews()
+        {
+            if (_expanded) (TabHost.Content as ITabView)?.OnDeactivated();
+            TabHost.Content = null;
+            _views.Clear();
+            SelectTab(_tab);
+        }
+
         public void ApplySettings()
         {
-            Ui.ApplyAccent(S.Accent);
+            var sig = ThemeService.Signature;
+            if (sig != _themeSig)
+            {
+                _themeSig = sig;
+                ThemeService.Apply();
+                RebuildViews();
+            }
+            else Ui.ApplyAccent(S.Accent);
+            BackdropLayer.Configure();
+            if (_expanded)
+            {
+                _fillTarget = default;
+                AnimateFill(ThemeService.Panel, 200);
+                if (BackdropLayer.HasContent) { BackdropLayer.Start(); Fade(BackdropLayer, 1, 200, 0); }
+                else BackdropLayer.Stop();
+            }
+            Eyes.Kind = S.Eyes;
+            Eyes.SleepWhenIdle = S.EyesSleep;
             if (_hwnd == IntPtr.Zero) return;
 
             Shape.IsIsland = Island;
@@ -338,6 +381,8 @@ namespace Crest
             HoverZone.Height = Math.Max(10, TopGap + 8);
 
             ActivityRow.Height = RowH;
+            Eyes.Width = Math.Round(52 * K);
+            Eyes.Height = Math.Round(15 * K);
             double pad = Shoulder + Math.Round(13 * K);
             CollapsedLayer.Margin = new Thickness(pad, 0, pad, 0);
             LeftText.FontSize = Math.Round(12.5 * K, 1);
@@ -444,7 +489,14 @@ namespace Crest
 
             PositionWindow(ExpandedWindow);
             HoverZone.Visibility = Visibility.Collapsed;
-            Shape.Fill = Brushes.Black;
+            Eyes.Visibility = Visibility.Collapsed;
+            AnimateFill(ThemeService.Panel, 300);
+            if (BackdropLayer.HasContent)
+            {
+                BackdropLayer.Visibility = Visibility.Visible;
+                BackdropLayer.Start();
+                Fade(BackdropLayer, 1, 320, 60);
+            }
             (TabHost.Content as ITabView)?.OnActivated();
 
             ApplyShadow(true);
@@ -473,6 +525,7 @@ namespace Crest
             if (wasForeground && _prevFg != IntPtr.Zero && _prevFg != _hwnd && Win32.IsWindow(_prevFg)) Win32.SetForegroundWindow(_prevFg);
 
             Fade(ExpandedLayer, 0, 110, 0);
+            Fade(BackdropLayer, 0, 140, 0);
             ExpandedShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-8, TimeSpan.FromMilliseconds(150)));
             Fade(CollapsedLayer, 1, 200, 230);
             HoverZone.Visibility = Visibility.Visible;
@@ -483,6 +536,7 @@ namespace Crest
             {
                 if (_expanded || gen != _gen) return;
                 ExpandedLayer.Visibility = Visibility.Collapsed;
+                BackdropLayer.Stop();
                 ApplyShadow(false);
                 PositionWindow(CollapsedWindow);
             });
@@ -874,7 +928,10 @@ namespace Crest
             };
             bool line = m == Mode.Idle && LineIdle && !privacy;
             double radius = Island ? body.Height / 2 : line ? 2.5 : m == Mode.Idle ? Math.Round(11 * K) : m == Mode.Hud ? Math.Round(16 * K) : Math.Round(13 * K);
-            Shape.Fill = line ? Ui.Brush("#FF48484A") : Brushes.Black;
+            AnimateFill(line ? Color.FromRgb(0x48, 0x48, 0x4A) : Colors.Black, 220);
+            bool eyes = m == Mode.Idle && S.Eyes != "Off" && !LineIdle && !HiddenIdle;
+            Eyes.Visibility = eyes ? Visibility.Visible : Visibility.Collapsed;
+            Shape.ShowLens = S.CameraCutout && !eyes;
             HoverZone.Width = Math.Max(Math.Max(body.Width, IdleBody.Width), 150) + 2 * Shoulder;
             HoverZone.Visibility = HiddenIdle || _expanded ? Visibility.Collapsed : Visibility.Visible;
 

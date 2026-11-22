@@ -62,6 +62,9 @@ namespace Crest.Controls
         /// <summary>Simulated camera cutout in the middle (OLED / bezel look).</summary>
         public bool ShowLens { get => (bool)GetValue(ShowLensProperty); set => SetValue(ShowLensProperty, value); }
 
+        /// <summary>An element (the backdrop) that should be clipped to exactly this silhouette.</summary>
+        public UIElement? ClipTarget { get; set; }
+
         static readonly Brush LensFill = Freeze(new RadialGradientBrush(Color.FromRgb(0x1C, 0x1F, 0x2E), Color.FromRgb(0x05, 0x05, 0x07)));
         static readonly Pen LensRing = new Pen(Freeze(new SolidColorBrush(Color.FromRgb(0x16, 0x16, 0x1C))), 1.2);
         static Brush Freeze(Brush b) { b.Freeze(); return b; }
@@ -103,6 +106,7 @@ namespace Crest.Controls
                 g = sg;
             }
             g.Freeze();
+            if (ClipTarget != null) ClipTarget.Clip = g;
             dc.DrawGeometry(Fill, Stroke != null ? new Pen(Stroke, 1) : null, g);
             if (ShowLens && h > 14)
             {

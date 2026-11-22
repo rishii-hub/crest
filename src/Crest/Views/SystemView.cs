@@ -258,10 +258,10 @@ namespace Crest.Views
     public sealed class ProgressLine : FrameworkElement
     {
         double _value;
-        Brush _brush = Brushes.White;
+        Brush _brush = Ui.Res("TextBrush");
         public double Value { get => _value; set { _value = Math.Clamp(value, 0, 1); InvalidateVisual(); } }
         public Brush Brush { get => _brush; set { _brush = value; InvalidateVisual(); } }
-        static readonly Brush Track = Ui.Brush("#22FFFFFF");
+        readonly Brush Track = Ui.Res("TrackBrush");
 
         protected override Size MeasureOverride(Size available) => new Size(0, 6);
 

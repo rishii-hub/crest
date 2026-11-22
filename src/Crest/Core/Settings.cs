@@ -23,6 +23,17 @@ namespace Crest.Core
         public List<string> HiddenTabs { get; set; } = new List<string> { "Message" };
         public string Accent { get; set; } = "#FF9F0A";
 
+        // Themes
+        public string Theme { get; set; } = "Dark";          // Dark | Light | Graphite | Midnight | Forest | Vivid | Sunset | Custom
+        public string CustomPanel { get; set; } = "#101014"; // Custom theme panel colour (light or dark is detected from it)
+        public string Backdrop { get; set; } = "None";       // None | Aurora | Sunset | Ocean | Media
+        public string BgPath { get; set; } = "";             // picture, GIF or video for Backdrop = Media
+        public int BgDim { get; set; } = 45;                  // % of panel colour laid over the media
+        public int BgBlur { get; set; } = 0;                  // px
+        public string Font { get; set; } = "Inter";           // Inter | Segoe | Bahnschrift | any installed family name
+        public string Eyes { get; set; } = "Off";             // Off | Pill | Bubble | Honey | Jade | Robot
+        public bool EyesSleep { get; set; } = true;           // close the eyes when you're away
+
         // Behaviour
         public bool ExpandOnHover { get; set; } = true;
         public int HoverDelayMs { get; set; } = 150;

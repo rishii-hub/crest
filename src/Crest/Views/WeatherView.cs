@@ -229,7 +229,7 @@ namespace Crest.Views
     public sealed class RangeBar : FrameworkElement
     {
         public double Lo, Hi, Min, Max;
-        static readonly Brush Track = Ui.Brush("#22FFFFFF");
+        readonly Brush Track = Ui.Res("TrackBrush");
 
         protected override Size MeasureOverride(Size available) => new Size(0, 5);
 

@@ -68,8 +68,8 @@ namespace Crest
             var title = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             title.Children.Add(new Border
             {
-                Width = 22, Height = 22, CornerRadius = new CornerRadius(6), Background = Brushes.White, Margin = new Thickness(0, 0, 9, 0),
-                Child = new TextBlock { Text = tab.Glyph ?? "", Style = Ui.StyleRes("Icon"), FontSize = 11, Foreground = Brushes.Black }
+                Width = 22, Height = 22, CornerRadius = new CornerRadius(6), Background = Ui.Res("InkBrush"), Margin = new Thickness(0, 0, 9, 0),
+                Child = new TextBlock { Text = tab.Glyph ?? "", Style = Ui.StyleRes("Icon"), FontSize = 11, Foreground = Ui.Res("OnInkBrush") }
             });
             title.Children.Add(new TextBlock { Text = tab.Title ?? key, FontFamily = (FontFamily)FindResource("DisplayFont"), FontSize = 14, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
             if (!string.IsNullOrEmpty(tab.Sub))
@@ -91,8 +91,8 @@ namespace Crest
 
             var card = new Border
             {
-                Background = Brushes.Black, CornerRadius = new CornerRadius(26), Padding = new Thickness(18, 12, 18, 16),
-                BorderBrush = SettingsStore.Current.Oled ? null : Ui.Brush("#26FFFFFF"), BorderThickness = new Thickness(SettingsStore.Current.Oled ? 0 : 1),
+                Background = Ui.Res("PanelBrush"), CornerRadius = new CornerRadius(26), Padding = new Thickness(18, 12, 18, 16),
+                BorderBrush = SettingsStore.Current.Oled ? null : Ui.Res("DividerBrush"), BorderThickness = new Thickness(SettingsStore.Current.Oled ? 0 : 1),
                 Child = stack, Margin = new Thickness(26),
                 Effect = SettingsStore.Current.Oled ? null : new DropShadowEffect { BlurRadius = 30, ShadowDepth = 8, Direction = 270, Opacity = 0.55, Color = Colors.Black },
                 RenderTransformOrigin = new Point(0.5, 0),

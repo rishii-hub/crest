@@ -303,7 +303,7 @@ namespace Crest.Views
             double r = size / 2 - 1;
             dc.DrawEllipse(Ui.Res("Card2Brush"), null, c, r, r);
             var tick = new Pen(Ui.Res("Text3Brush"), 1.2);
-            var hourTick = new Pen(Brushes.White, 2.4) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+            var hourTick = new Pen(Ui.Res("TextBrush"), 2.4) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
             for (int i = 0; i < 60; i++)
             {
                 double a = i * Math.PI / 30;
@@ -319,8 +319,8 @@ namespace Crest.Views
                 var pen = new Pen(brush, width) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
                 dc.DrawLine(pen, new Point(c.X - tail * Math.Sin(a), c.Y + tail * Math.Cos(a)), new Point(c.X + len * Math.Sin(a), c.Y - len * Math.Cos(a)));
             }
-            hand(hr * 30, r * 0.5, 5, Brushes.White, 0);
-            hand(min * 6, r * 0.75, 3.5, Brushes.White, 0);
+            hand(hr * 30, r * 0.5, 5, Ui.Res("TextBrush"), 0);
+            hand(min * 6, r * 0.75, 3.5, Ui.Res("TextBrush"), 0);
             hand(sec * 6, r * 0.85, 1.5, (Brush)Application.Current.FindResource("AccentBrush"), r * 0.15);
             dc.DrawEllipse((Brush)Application.Current.FindResource("AccentBrush"), null, c, 3.5, 3.5);
         }

@@ -16,6 +16,15 @@
   <SolidColorBrush x:Key="OrangeBrush" Color="#FFFF9F0A"/>
   <SolidColorBrush x:Key="CyanBrush" Color="#FF64D2FF"/>
   <SolidColorBrush x:Key="PurpleBrush" Color="#FFBF5AF2"/>
+  <!-- Theme roles (ThemeService replaces these at runtime) -->
+  <SolidColorBrush x:Key="PanelBrush" Color="#FF000000"/>
+  <SolidColorBrush x:Key="DockBrush" Color="#FF161618"/>
+  <SolidColorBrush x:Key="InkBrush" Color="#FFFFFFFF"/>
+  <SolidColorBrush x:Key="OnInkBrush" Color="#FF000000"/>
+  <SolidColorBrush x:Key="OverlayBrush" Color="#FFFFFFFF"/>
+  <SolidColorBrush x:Key="DividerBrush" Color="#33FFFFFF"/>
+  <SolidColorBrush x:Key="TrackBrush" Color="#FF39393D"/>
+  <SolidColorBrush x:Key="ScrollBrush" Color="#40FFFFFF"/>
 
   <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
   <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
@@ -30,29 +39,29 @@
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="H1" TargetType="TextBlock">
-    <Setter Property="FontFamily" Value="{StaticResource DisplayFont}"/>
+    <Setter Property="FontFamily" Value="{DynamicResource DisplayFont}"/>
     <Setter Property="FontSize" Value="15"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
   <Style x:Key="Caption" TargetType="TextBlock">
     <Setter Property="FontSize" Value="11.5"/>
-    <Setter Property="Foreground" Value="{StaticResource Text2Brush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
   </Style>
   <Style x:Key="Num" TargetType="TextBlock">
-    <Setter Property="FontFamily" Value="{StaticResource DisplayFont}"/>
+    <Setter Property="FontFamily" Value="{DynamicResource DisplayFont}"/>
     <Setter Property="Typography.NumeralAlignment" Value="Tabular"/>
   </Style>
 
   <!-- Card -->
   <Style x:Key="Card" TargetType="Border">
-    <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
     <Setter Property="CornerRadius" Value="18"/>
     <Setter Property="Padding" Value="14"/>
   </Style>
 
   <!-- Icon button (round, hover overlay) -->
   <Style x:Key="IconButton" TargetType="ButtonBase">
-    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Width" Value="32"/>
     <Setter Property="Height" Value="32"/>
@@ -65,7 +74,7 @@
         <ControlTemplate TargetType="ButtonBase">
           <Grid>
             <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10"/>
-            <Border x:Name="Ov" Background="White" Opacity="0" CornerRadius="10"/>
+            <Border x:Name="Ov" Background="{DynamicResource OverlayBrush}" Opacity="0" CornerRadius="10"/>
             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                               TextElement.Foreground="{TemplateBinding Foreground}"
                               TextElement.FontFamily="{TemplateBinding FontFamily}"
@@ -98,7 +107,7 @@
 
   <!-- Dock tab: the white selection pill is a separate element that slides between tabs -->
   <Style x:Key="TabButton" TargetType="RadioButton">
-    <Setter Property="Foreground" Value="{StaticResource Text2Brush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
     <Setter Property="Width" Value="36"/>
     <Setter Property="Height" Value="36"/>
     <Setter Property="Margin" Value="1,0"/>
@@ -110,7 +119,7 @@
       <Setter.Value>
         <ControlTemplate TargetType="RadioButton">
           <Grid Background="Transparent">
-            <Ellipse x:Name="Ov" Fill="White" Opacity="0"/>
+            <Ellipse x:Name="Ov" Fill="{DynamicResource OverlayBrush}" Opacity="0"/>
             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                               TextElement.Foreground="{TemplateBinding Foreground}"
                               TextElement.FontFamily="{TemplateBinding FontFamily}"
@@ -119,11 +128,11 @@
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
               <Setter TargetName="Ov" Property="Opacity" Value="0.08"/>
-              <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+              <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             </Trigger>
             <Trigger Property="IsChecked" Value="True">
               <Setter TargetName="Ov" Property="Opacity" Value="0"/>
-              <Setter Property="Foreground" Value="Black"/>
+              <Setter Property="Foreground" Value="{DynamicResource OnInkBrush}"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -133,7 +142,7 @@
 
   <!-- Segmented control item -->
   <Style x:Key="Seg" TargetType="RadioButton">
-    <Setter Property="Foreground" Value="{StaticResource Text2Brush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
     <Setter Property="Padding" Value="12,5"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="Cursor" Value="Hand"/>
@@ -147,11 +156,11 @@
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+              <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             </Trigger>
             <Trigger Property="IsChecked" Value="True">
-              <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}"/>
-              <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+              <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -161,8 +170,8 @@
 
   <!-- Pill button -->
   <Style x:Key="Pill" TargetType="ButtonBase">
-    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-    <Setter Property="Background" Value="{StaticResource Card2Brush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource Card2Brush}"/>
     <Setter Property="Padding" Value="12,6"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="Cursor" Value="Hand"/>
@@ -172,7 +181,7 @@
         <ControlTemplate TargetType="ButtonBase">
           <Grid>
             <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10"/>
-            <Border x:Name="Ov" Background="White" Opacity="0" CornerRadius="10"/>
+            <Border x:Name="Ov" Background="{DynamicResource OverlayBrush}" Opacity="0" CornerRadius="10"/>
             <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"
                               TextElement.Foreground="{TemplateBinding Foreground}"/>
           </Grid>
@@ -203,8 +212,8 @@
 
   <!-- Big round primary button (play/pause) -->
   <Style x:Key="PrimaryButton" TargetType="ButtonBase">
-    <Setter Property="Foreground" Value="Black"/>
-    <Setter Property="Background" Value="White"/>
+    <Setter Property="Foreground" Value="{DynamicResource OnInkBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource InkBrush}"/>
     <Setter Property="Width" Value="44"/>
     <Setter Property="Height" Value="44"/>
     <Setter Property="FontFamily" Value="{StaticResource IconFont}"/>
@@ -237,8 +246,8 @@
 
   <!-- Quick-action tiles -->
   <Style x:Key="Tile" TargetType="ButtonBase">
-    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-    <Setter Property="Background" Value="{StaticResource Card2Brush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource Card2Brush}"/>
     <Setter Property="Height" Value="58"/>
     <Setter Property="Margin" Value="3"/>
     <Setter Property="Cursor" Value="Hand"/>
@@ -248,7 +257,7 @@
         <ControlTemplate TargetType="ButtonBase">
           <Grid>
             <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="14"/>
-            <Border x:Name="Ov" Background="White" Opacity="0" CornerRadius="14"/>
+            <Border x:Name="Ov" Background="{DynamicResource OverlayBrush}" Opacity="0" CornerRadius="14"/>
             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                               TextElement.Foreground="{TemplateBinding Foreground}"/>
           </Grid>
@@ -281,7 +290,7 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="CheckBox">
-          <Border x:Name="Track" Width="40" Height="24" CornerRadius="12" Background="#FF39393D">
+          <Border x:Name="Track" Width="40" Height="24" CornerRadius="12" Background="{DynamicResource TrackBrush}">
             <Ellipse x:Name="Knob" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="2,0,0,0"/>
           </Border>
           <ControlTemplate.Triggers>
@@ -305,7 +314,7 @@
       <Setter.Value>
         <ControlTemplate TargetType="CheckBox">
           <Grid Width="18" Height="18">
-            <Ellipse x:Name="Ring" Stroke="#FF6E6E73" StrokeThickness="1.5" Fill="Transparent"/>
+            <Ellipse x:Name="Ring" Stroke="{DynamicResource Text3Brush}" StrokeThickness="1.5" Fill="Transparent"/>
             <TextBlock x:Name="Tick" Text="&#xE73E;" FontFamily="{StaticResource IconFont}" FontSize="10" Foreground="Black"
                        HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
           </Grid>
@@ -355,7 +364,7 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Thumb">
-          <Ellipse x:Name="E" Width="12" Height="12" Fill="White"/>
+          <Ellipse x:Name="E" Width="12" Height="12" Fill="{DynamicResource InkBrush}"/>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
               <Setter TargetName="E" Property="Width" Value="14"/>
@@ -367,7 +376,7 @@
     </Setter>
   </Style>
   <Style x:Key="Thin" TargetType="Slider">
-    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
     <Setter Property="Focusable" Value="False"/>
     <Setter Property="IsMoveToPointEnabled" Value="True"/>
     <Setter Property="Cursor" Value="Hand"/>
@@ -376,7 +385,7 @@
       <Setter.Value>
         <ControlTemplate TargetType="Slider">
           <Grid Height="18" Background="Transparent">
-            <Border Height="4" CornerRadius="2" Background="#30FFFFFF" VerticalAlignment="Center"/>
+            <Border Height="4" CornerRadius="2" Background="{DynamicResource TrackBrush}" VerticalAlignment="Center"/>
             <Track x:Name="PART_Track">
               <Track.DecreaseRepeatButton>
                 <RepeatButton Command="Slider.DecreaseLarge" Style="{StaticResource SliderRepeatFill}"/>
@@ -396,9 +405,9 @@
 
   <!-- Text field with placeholder (Tag) -->
   <Style x:Key="Field" TargetType="TextBox">
-    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-    <Setter Property="Background" Value="{StaticResource Card2Brush}"/>
-    <Setter Property="CaretBrush" Value="White"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource Card2Brush}"/>
+    <Setter Property="CaretBrush" Value="{DynamicResource TextBrush}"/>
     <Setter Property="SelectionBrush" Value="{DynamicResource AccentBrush}"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="Padding" Value="10,7"/>
@@ -409,7 +418,7 @@
           <Border Background="{TemplateBinding Background}" CornerRadius="10" Padding="{TemplateBinding Padding}">
             <Grid>
               <TextBlock x:Name="Hint" Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
-                         Foreground="{StaticResource Text3Brush}" IsHitTestVisible="False" Visibility="Collapsed"
+                         Foreground="{DynamicResource Text3Brush}" IsHitTestVisible="False" Visibility="Collapsed"
                          Margin="2,0,0,0" TextWrapping="Wrap"/>
               <ScrollViewer x:Name="PART_ContentHost" Focusable="False" VerticalScrollBarVisibility="{TemplateBinding VerticalScrollBarVisibility}"/>
             </Grid>
@@ -425,9 +434,9 @@
   </Style>
 
   <Style x:Key="PasswordField" TargetType="PasswordBox">
-    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-    <Setter Property="Background" Value="{StaticResource CardBrush}"/>
-    <Setter Property="CaretBrush" Value="White"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
+    <Setter Property="CaretBrush" Value="{DynamicResource TextBrush}"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="Padding" Value="10,7"/>
     <Setter Property="FontSize" Value="13"/>
@@ -450,7 +459,7 @@
         <Thumb>
           <Thumb.Template>
             <ControlTemplate TargetType="Thumb">
-              <Border CornerRadius="3" Background="#40FFFFFF"/>
+              <Border CornerRadius="3" Background="{DynamicResource ScrollBrush}"/>
             </ControlTemplate>
           </Thumb.Template>
         </Thumb>
@@ -463,7 +472,7 @@
         <Thumb>
           <Thumb.Template>
             <ControlTemplate TargetType="Thumb">
-              <Border CornerRadius="3" Background="#40FFFFFF"/>
+              <Border CornerRadius="3" Background="{DynamicResource ScrollBrush}"/>
             </ControlTemplate>
           </Thumb.Template>
         </Thumb>

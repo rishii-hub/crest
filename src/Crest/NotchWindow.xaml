@@ -12,8 +12,8 @@
         Topmost="True"
         AllowDrop="True"
         Left="-20000" Top="-20000" Width="400" Height="100"
-        FontFamily="{StaticResource UiFont}"
-        Foreground="{StaticResource TextBrush}"
+        FontFamily="{DynamicResource UiFont}"
+        Foreground="{DynamicResource TextBrush}"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display"
@@ -46,10 +46,13 @@
         <TranslateTransform x:Name="NotchShift"/>
       </Grid.RenderTransform>
       <c:NotchShape x:Name="Shape" Fill="Black"/>
+      <c:Backdrop x:Name="BackdropLayer" Opacity="0" Visibility="Collapsed"/>
 
       <!-- ===== Collapsed: live activities ===== -->
-      <Grid x:Name="CollapsedLayer" VerticalAlignment="Top">
+      <Grid x:Name="CollapsedLayer" VerticalAlignment="Top" TextElement.Foreground="White">
         <Grid x:Name="ActivityRow" Height="32" VerticalAlignment="Top">
+
+          <c:NotchEyes x:Name="Eyes" HorizontalAlignment="Center" VerticalAlignment="Center" Width="50" Height="16" Visibility="Collapsed"/>
 
           <!-- left slot -->
           <Grid x:Name="LeftSlot" HorizontalAlignment="Left" VerticalAlignment="Center">
@@ -75,8 +78,8 @@
             <c:BatteryGlyph x:Name="RightBattery" Margin="7,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"/>
             <StackPanel x:Name="ActionPanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0" Visibility="Collapsed"/>
             <StackPanel x:Name="PrivacyDots" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0" Visibility="Collapsed">
-              <Ellipse x:Name="CamDot" Width="6" Height="6" Fill="{StaticResource GreenBrush}" Margin="0,0,3,0" Visibility="Collapsed"/>
-              <Ellipse x:Name="MicDot" Width="6" Height="6" Fill="{StaticResource OrangeBrush}" Visibility="Collapsed"/>
+              <Ellipse x:Name="CamDot" Width="6" Height="6" Fill="{DynamicResource GreenBrush}" Margin="0,0,3,0" Visibility="Collapsed"/>
+              <Ellipse x:Name="MicDot" Width="6" Height="6" Fill="{DynamicResource OrangeBrush}" Visibility="Collapsed"/>
             </StackPanel>
           </StackPanel>
         </Grid>
@@ -107,14 +110,14 @@
         <DockPanel LastChildFill="True">
           <StackPanel x:Name="HeaderRight" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
             <StackPanel x:Name="HeaderPrivacy" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0" Visibility="Collapsed">
-              <Ellipse x:Name="HeaderCamDot" Width="7" Height="7" Fill="{StaticResource GreenBrush}" Margin="0,0,4,0" Visibility="Collapsed"/>
-              <Ellipse x:Name="HeaderMicDot" Width="7" Height="7" Fill="{StaticResource OrangeBrush}" Visibility="Collapsed"/>
+              <Ellipse x:Name="HeaderCamDot" Width="7" Height="7" Fill="{DynamicResource GreenBrush}" Margin="0,0,4,0" Visibility="Collapsed"/>
+              <Ellipse x:Name="HeaderMicDot" Width="7" Height="7" Fill="{DynamicResource OrangeBrush}" Visibility="Collapsed"/>
             </StackPanel>
             <StackPanel x:Name="HeaderBattery" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
               <TextBlock x:Name="HeaderBatteryText" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0"/>
               <c:BatteryGlyph x:Name="HeaderBatteryGlyph" VerticalAlignment="Center"/>
             </StackPanel>
-            <Rectangle Width="1" Height="16" Fill="#33FFFFFF" Margin="0,0,6,0"/>
+            <Rectangle Width="1" Height="16" Fill="{DynamicResource DividerBrush}" Margin="0,0,6,0"/>
             <Button x:Name="PopOutButton" Style="{StaticResource IconButton}" Content="&#xE8A7;" FontSize="12" Width="30" Height="30" ToolTip="Pop out as a floating widget (or drag the title down)"/>
             <ToggleButton x:Name="PinButton" Style="{StaticResource IconToggle}" Content="&#xE718;" FontSize="12" Width="30" Height="30" ToolTip="Keep open"/>
             <Button x:Name="SearchButton" Style="{StaticResource IconButton}" Content="&#xE721;" FontSize="13" Width="30" Height="30" ToolTip="Search  (Ctrl+Alt+Space)"/>
@@ -122,14 +125,14 @@
             <Button x:Name="CloseButton" Style="{StaticResource IconButton}" Content="&#xE711;" FontSize="11" Width="30" Height="30" ToolTip="Close  (Esc)"/>
           </StackPanel>
           <StackPanel x:Name="HeaderLeft" Orientation="Horizontal" VerticalAlignment="Center" Background="Transparent" Cursor="SizeAll">
-            <Border Width="24" Height="24" CornerRadius="7" Background="White" Margin="2,0,10,0">
-              <TextBlock x:Name="HeaderGlyph" Style="{StaticResource Icon}" FontSize="12" Foreground="Black" Text="&#xE80F;"/>
+            <Border Width="24" Height="24" CornerRadius="7" Background="{DynamicResource InkBrush}" Margin="2,0,10,0">
+              <TextBlock x:Name="HeaderGlyph" Style="{StaticResource Icon}" FontSize="12" Foreground="{DynamicResource OnInkBrush}" Text="&#xE80F;"/>
             </Border>
-            <TextBlock x:Name="HeaderTitle" FontFamily="{StaticResource DisplayFont}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Text="Home"/>
-            <Rectangle Width="1" Height="14" Fill="#40FFFFFF" Margin="10,0" VerticalAlignment="Center"/>
-            <TextBlock x:Name="HeaderSub" FontSize="12.5" Foreground="{StaticResource Text2Brush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="260"/>
+            <TextBlock x:Name="HeaderTitle" FontFamily="{DynamicResource DisplayFont}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Text="Home"/>
+            <Rectangle Width="1" Height="14" Fill="{DynamicResource DividerBrush}" Margin="10,0" VerticalAlignment="Center"/>
+            <TextBlock x:Name="HeaderSub" FontSize="12.5" Foreground="{DynamicResource Text2Brush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="260"/>
             <Border x:Name="Banner" VerticalAlignment="Center" Opacity="0" IsHitTestVisible="False" Margin="14,0,0,0"
-                    Background="#FF1C1C1E" CornerRadius="11" Padding="10,3">
+                    Background="{DynamicResource Card2Brush}" CornerRadius="11" Padding="10,3">
               <StackPanel Orientation="Horizontal">
                 <TextBlock x:Name="BannerGlyph" Style="{StaticResource Icon}" FontSize="12" Margin="0,0,6,0"/>
                 <TextBlock x:Name="BannerText" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -147,10 +150,10 @@
         </Grid>
 
         <!-- dock with sliding pill -->
-        <Border x:Name="DockBorder" Grid.Row="2" HorizontalAlignment="Center" Background="#FF161618" CornerRadius="22" Padding="5" Margin="0,0,0,2">
+        <Border x:Name="DockBorder" Grid.Row="2" HorizontalAlignment="Center" Background="{DynamicResource DockBrush}" CornerRadius="22" Padding="5" Margin="0,0,0,2">
           <Grid>
             <Canvas x:Name="PillCanvas" IsHitTestVisible="False">
-              <Border x:Name="DockPill" Width="36" Height="36" CornerRadius="18" Background="White" RenderTransformOrigin="0.5,0.5">
+              <Border x:Name="DockPill" Width="36" Height="36" CornerRadius="18" Background="{DynamicResource InkBrush}" RenderTransformOrigin="0.5,0.5">
                 <Border.RenderTransform>
                   <TransformGroup>
                     <ScaleTransform x:Name="PillScale"/>

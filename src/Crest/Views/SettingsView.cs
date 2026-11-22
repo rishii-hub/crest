@@ -1,10 +1,12 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using Crest.Controls;
 using Crest.Core;
 using Crest.Services;
 
@@ -74,6 +76,9 @@ namespace Crest.Views
 
         void Build()
         {
+            ThemeSection();
+            EyesSection();
+
             // ---- Appearance ----
             var look = Section(_left, "Appearance");
             Seg(look, "Style", new[] { ("Notch", "Notch"), ("Island", "Island") }, S.Style, v => S.Style = v);
@@ -81,7 +86,6 @@ namespace Crest.Views
             Seg(look, "Visibility", new[] { ("Always", "Always"), ("Smart", "Smart"), ("Minimal", "Minimal"), ("Hidden", "Hidden") }, S.Visibility, v => S.Visibility = v,
                 "Smart tucks into a thin line over maximized apps · Hidden shows only events");
             Seg(look, "Resting notch", new[] { ("None", "Clean"), ("Corners", "Time & battery") }, S.RestingInfo, v => S.RestingInfo = v);
-            Accents(look);
             Toggle(look, "Outline", "Hairline around the notch", S.Outline, v => S.Outline = v);
             Seg(look, "Shadow", new[] { ("None", "None"), ("Subtle", "Subtle"), ("Medium", "Medium"), ("Deep", "Deep") }, S.Shadow, v => S.Shadow = v, "Depth under the open notch");
             Seg(look, "Music colour", new[] { ("Album", "Album art"), ("Accent", "Accent"), ("Rainbow", "Rainbow") }, S.EqColor, v => S.EqColor = v);
@@ -223,6 +227,192 @@ namespace Crest.Views
             catch (Exception ex) { Log.Error("import", ex); NotchWindow.Instance?.ShowBanner(new Toast { Glyph = Glyphs.Close, Title = "Import failed", Value = ex.Message }); }
         }
 
+        // ---------- theme ----------
+        void ThemeSection()
+        {
+            var t = Section(_left, "Theme");
+            var wrap = new WrapPanel { Margin = new Thickness(0, 8, 0, 2) };
+            foreach (var p in ThemeService.Presets) wrap.Children.Add(ThemeTile(p));
+            t.Children.Add(wrap);
+            if (S.Theme == "Custom") PanelColours(t);
+            Accents(t);
+            Seg(t, "Background", new[] { ("None", "None"), ("Aurora", "Aurora"), ("Sunset", "Sunset"), ("Ocean", "Ocean"), ("Media", "Your own") }, S.Backdrop,
+                v => S.Backdrop = v, "Behind the open notch. Cards turn to glass.");
+            if (S.Backdrop == "Media") MediaRows(t);
+            Seg(t, "Font", new[] { ("Inter", "Inter"), ("Segoe", "Segoe UI"), ("Bahnschrift", "Bahnschrift") },
+                S.Font is "Inter" or "Segoe" or "Bahnschrift" ? S.Font : "", v => S.Font = v);
+            FontRow(t);
+        }
+
+        void EyesSection()
+        {
+            var t = Section(_left, "Eyes");
+            t.Children.Add(new TextBlock { Text = "The resting notch watches your cursor, blinks, glances around when you're still and dozes off when you're away. Live activities take over while they run.", Style = Ui.StyleRes("Caption"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 8) });
+            var wrap = new WrapPanel();
+            foreach (var kind in new[] { "Off" }.Concat(NotchEyes.Styles))
+            {
+                bool sel = S.Eyes == kind;
+                UIElement inner = kind == "Off"
+                    ? new TextBlock { Text = "Off", FontSize = 11.5, Foreground = Brushes.White, Opacity = 0.7, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+                    : new NotchEyes { Kind = kind, Width = 44, Height = 13, SleepWhenIdle = false, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                var tile = new Border
+                {
+                    Width = 64, Height = 28, CornerRadius = new CornerRadius(10), Background = Brushes.Black, Child = inner,
+                    BorderThickness = new Thickness(sel ? 2 : 1), BorderBrush = sel ? Ui.Res("AccentBrush") : Ui.Res("StrokeBrush")
+                };
+                var box = new StackPanel { Margin = new Thickness(0, 0, 9, 8), Cursor = System.Windows.Input.Cursors.Hand, Background = Brushes.Transparent };
+                box.Children.Add(tile);
+                box.Children.Add(new TextBlock { Text = kind, FontSize = 11.5, Margin = new Thickness(2, 4, 0, 0), Foreground = sel ? Ui.Res("TextBrush") : Ui.Res("Text2Brush"), FontWeight = sel ? FontWeights.SemiBold : FontWeights.Normal });
+                var k = kind;
+                box.MouseLeftButtonUp += (s, e) =>
+                {
+                    S.Eyes = k;
+                    foreach (StackPanel other in wrap.Children)
+                    {
+                        bool on = other == box;
+                        var b = (Border)other.Children[0];
+                        b.BorderThickness = new Thickness(on ? 2 : 1);
+                        b.BorderBrush = on ? Ui.Res("AccentBrush") : Ui.Res("StrokeBrush");
+                        var l = (TextBlock)other.Children[1];
+                        l.Foreground = on ? Ui.Res("TextBrush") : Ui.Res("Text2Brush");
+                        l.FontWeight = on ? FontWeights.SemiBold : FontWeights.Normal;
+                    }
+                    Changed(true);
+                };
+                wrap.Children.Add(box);
+            }
+            t.Children.Add(wrap);
+            Toggle(t, "Sleep when you're away", "Eyes close after a minute without input and wake up when you're back", S.EyesSleep, v => S.EyesSleep = v);
+        }
+
+        FrameworkElement ThemeTile(ThemePreset p)
+        {
+            bool selected = S.Theme == p.Key;
+            string panelHex = p.Key == "Custom" ? S.CustomPanel : p.Panel;
+            var panel = ThemeService.Parse(panelHex, Colors.Black);
+            bool light = ThemeService.Luma(panel) > 0.5;
+            Brush bg = new SolidColorBrush(panel);
+            if (p.Backdrop != "None" && p.Backdrop != "")
+            {
+                var cs = ThemeService.BackdropColors(p.Backdrop);
+                var lg = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
+                lg.GradientStops.Add(new GradientStop(ThemeService.Mix(panel, cs[0], 0.75), 0));
+                lg.GradientStops.Add(new GradientStop(ThemeService.Mix(panel, cs[1], 0.6), 0.55));
+                lg.GradientStops.Add(new GradientStop(ThemeService.Mix(panel, cs[2], 0.7), 1));
+                bg = lg;
+            }
+            var card = new Border
+            {
+                Width = 40, Height = 14, CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(7, 0, 0, 7),
+                Background = new SolidColorBrush(p.Backdrop is "None" or "" ? ThemeService.Mix(panel, Colors.White, light ? 0.8 : 0.12) : Color.FromArgb(60, 255, 255, 255))
+            };
+            var dot = new Ellipse { Width = 9, Height = 9, Fill = Ui.Brush(p.Key == "Custom" ? S.Accent : p.Accent), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 7, 7, 0) };
+            var g = new Grid();
+            g.Children.Add(card);
+            g.Children.Add(dot);
+            if (p.Key == "Custom")
+                g.Children.Add(new TextBlock { Text = "\uE790", Style = Ui.StyleRes("Icon"), FontSize = 13, Foreground = new SolidColorBrush(light ? Colors.Black : Colors.White), Opacity = 0.8 });
+            var swatch = new Border
+            {
+                Width = 70, Height = 46, CornerRadius = new CornerRadius(11), Background = bg, Child = g,
+                BorderThickness = new Thickness(selected ? 2 : 1), BorderBrush = selected ? Ui.Res("AccentBrush") : Ui.Res("StrokeBrush")
+            };
+            var box = new StackPanel { Margin = new Thickness(0, 0, 8, 8), Cursor = System.Windows.Input.Cursors.Hand, Background = Brushes.Transparent, ToolTip = p.Sub };
+            box.Children.Add(swatch);
+            box.Children.Add(new TextBlock { Text = p.Name, FontSize = 11.5, Margin = new Thickness(2, 4, 0, 0), Foreground = selected ? Ui.Res("TextBrush") : Ui.Res("Text2Brush"), FontWeight = selected ? FontWeights.SemiBold : FontWeights.Normal });
+            box.MouseLeftButtonUp += (s, e) => { ThemeService.Choose(p.Key); Changed(true); };
+            return box;
+        }
+
+        static void PanelColours(StackPanel host)
+        {
+            var row = new DockPanel { Margin = new Thickness(0, 6, 0, 6) };
+            var wrap = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            foreach (var hex in ThemeService.PanelSwatches)
+            {
+                bool sel = string.Equals(hex, S.CustomPanel, StringComparison.OrdinalIgnoreCase);
+                var sw = new Border
+                {
+                    Width = 22, Height = 22, CornerRadius = new CornerRadius(11), Background = Ui.Brush(hex), Margin = new Thickness(0, 0, 5, 5), Cursor = System.Windows.Input.Cursors.Hand,
+                    BorderThickness = new Thickness(sel ? 2 : 1), BorderBrush = sel ? Ui.Res("AccentBrush") : Ui.Res("StrokeBrush"), ToolTip = hex
+                };
+                var h = hex;
+                sw.MouseLeftButtonUp += (s, e) => { S.CustomPanel = h; Changed(true); };
+                wrap.Children.Add(sw);
+            }
+            var hexBox = new TextBox { Style = Ui.StyleRes("Field"), Text = S.CustomPanel, Width = 86, Tag = "#RRGGBB", Padding = new Thickness(8, 4, 8, 4), FontSize = 12, VerticalAlignment = VerticalAlignment.Top };
+            void commit()
+            {
+                var t = hexBox.Text.Trim();
+                if (!t.StartsWith("#")) t = "#" + t;
+                if (System.Text.RegularExpressions.Regex.IsMatch(t, "^#[0-9A-Fa-f]{6}$") && !string.Equals(t, S.CustomPanel, StringComparison.OrdinalIgnoreCase)) { S.CustomPanel = t.ToUpperInvariant(); Changed(true); }
+            }
+            hexBox.KeyDown += (s, e) => { if (e.Key == System.Windows.Input.Key.Enter) commit(); };
+            hexBox.LostKeyboardFocus += (s, e) => commit();
+            DockPanel.SetDock(hexBox, Dock.Right);
+            var left = new StackPanel();
+            left.Children.Add(Labels("Panel colour", "Light colours give a light theme automatically"));
+            left.Children.Add(wrap);
+            row.Children.Add(hexBox);
+            row.Children.Add(left);
+            host.Children.Add(row);
+        }
+
+        static void MediaRows(StackPanel host)
+        {
+            var row = new DockPanel { Margin = new Thickness(0, 6, 0, 6) };
+            var pick = new Button { Style = Ui.StyleRes("Pill"), Content = string.IsNullOrEmpty(S.BgPath) ? "Choose…" : "Change…", VerticalAlignment = VerticalAlignment.Center };
+            pick.Click += (s, e) =>
+            {
+                var notch = NotchWindow.Instance;
+                if (notch != null) notch.DragOut = true;
+                try
+                {
+                    var dlg = new Microsoft.Win32.OpenFileDialog
+                    {
+                        Title = "Background for the notch",
+                        Filter = "Pictures, GIFs and videos|*.png;*.jpg;*.jpeg;*.bmp;*.webp;*.gif;*.tif;*.tiff;*.heic;*.mp4;*.m4v;*.mov;*.wmv;*.avi;*.webm;*.mkv|All files|*.*"
+                    };
+                    if (dlg.ShowDialog() == true) { S.BgPath = dlg.FileName; S.Backdrop = "Media"; Changed(true); }
+                }
+                finally { if (notch != null) notch.DragOut = false; }
+            };
+            DockPanel.SetDock(pick, Dock.Right);
+            row.Children.Add(pick);
+            bool has = System.IO.File.Exists(S.BgPath);
+            string name = has ? System.IO.Path.GetFileName(S.BgPath) : "Pick a picture, an animated GIF or a video";
+            string kind = !has ? "" : Backdrop.VideoExt.Contains(System.IO.Path.GetExtension(S.BgPath).ToLowerInvariant()) ? "Video · plays muted, only while the notch is open"
+                        : S.BgPath.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ? "Animated GIF · pauses while the notch is closed" : "Picture";
+            row.Children.Add(Labels(name, kind));
+            host.Children.Add(row);
+            if (!has) return;
+            SliderRow(host, "Dim", "Panel colour over the background so text stays readable", 0, 90, S.BgDim, v => S.BgDim = (int)v, v => $"{v:0}%");
+            SliderRow(host, "Blur", "Costs some CPU with video", 0, 40, S.BgBlur, v => S.BgBlur = (int)v, v => v == 0 ? "Off" : $"{v:0} px");
+        }
+
+        static void FontRow(StackPanel host)
+        {
+            var row = new DockPanel { Margin = new Thickness(0, 2, 0, 6) };
+            bool custom = S.Font is not ("Inter" or "Segoe" or "Bahnschrift");
+            var box = new TextBox { Style = Ui.StyleRes("Field"), Text = custom ? S.Font : "", Tag = "Any installed font", Width = 150, Padding = new Thickness(8, 4, 8, 4), FontSize = 12 };
+            var note = new TextBlock { Text = "Or type the name of a font on this PC", FontSize = 11, Foreground = Ui.Res("Text3Brush"), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
+            void commit()
+            {
+                var name = box.Text.Trim();
+                if (name.Length == 0 || name == S.Font) return;
+                bool exists = Fonts.SystemFontFamilies.Any(f => string.Equals(f.Source, name, StringComparison.OrdinalIgnoreCase));
+                if (!exists) { note.Text = $"“{name}” isn't installed"; note.Foreground = Ui.Res("RedBrush"); return; }
+                S.Font = Fonts.SystemFontFamilies.First(f => string.Equals(f.Source, name, StringComparison.OrdinalIgnoreCase)).Source;
+                Changed(true);
+            }
+            box.KeyDown += (s, e) => { if (e.Key == System.Windows.Input.Key.Enter) commit(); };
+            box.LostKeyboardFocus += (s, e) => commit();
+            DockPanel.SetDock(box, Dock.Right);
+            row.Children.Add(box);
+            row.Children.Add(note);
+            host.Children.Add(row);
+        }
+
         // ---------- builders ----------
         static StackPanel Section(StackPanel host, string title)
         {
@@ -275,7 +465,7 @@ namespace Crest.Views
             var colors = new[] { "#FF9F0A", "#FF453A", "#FF375F", "#BF5AF2", "#5E5CE6", "#0A84FF", "#64D2FF", "#30D158", "#FFD60A" };
             foreach (var hex in colors)
             {
-                var ring = new Ellipse { Width = 22, Height = 22, StrokeThickness = 2, Stroke = string.Equals(hex, S.Accent, StringComparison.OrdinalIgnoreCase) ? Brushes.White : Brushes.Transparent };
+                var ring = new Ellipse { Width = 22, Height = 22, StrokeThickness = 2, Stroke = string.Equals(hex, S.Accent, StringComparison.OrdinalIgnoreCase) ? Ui.Res("TextBrush") : Brushes.Transparent };
                 var dot = new Ellipse { Width = 16, Height = 16, Fill = Ui.Brush(hex) };
                 var g = new Grid { Margin = new Thickness(2, 0, 2, 0), Cursor = System.Windows.Input.Cursors.Hand, Background = Brushes.Transparent, ToolTip = hex };
                 g.Children.Add(ring);
@@ -285,7 +475,7 @@ namespace Crest.Views
                 {
                     S.Accent = h;
                     foreach (Grid other in swatches.Children) ((Ellipse)other.Children[0]).Stroke = Brushes.Transparent;
-                    ring.Stroke = Brushes.White;
+                    ring.Stroke = Ui.Res("TextBrush");
                     Changed(true);
                 };
                 swatches.Children.Add(g);
