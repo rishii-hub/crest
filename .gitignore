@@ -1,0 +1,10 @@
+bin/
+obj/
+out/
+dist/
+shots/
+*.user
+*.suo
+.vs/
+.idea/
+.vscode/

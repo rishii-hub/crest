@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Crest</RootNamespace>
+    <AssemblyName>Crest</AssemblyName>
+    <ApplicationIcon>Assets\crest.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>1.0.0</Version>
+    <Product>Crest</Product>
+    <Description>An open-source Dynamic Island / notch for Windows</Description>
+    <Company>Crest contributors</Company>
+    <Copyright>Copyright (c) 2026 Crest contributors. MIT License.</Copyright>
+    <NoWarn>$(NoWarn);CA1416;CS8618;CS8602;CS8604;CS8600;CS8603;CS8625;CS8601</NoWarn>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <PackageReference Include="System.Management" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\crest.ico" />
+  </ItemGroup>
+
+</Project>

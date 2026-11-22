@@ -1,0 +1,78 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build
+        run: dotnet build src/Crest/Crest.csproj -c Release -warnaserror:CS0108,CS0114,CS4014
+
+      - name: Publish — standalone single exe (no .NET needed)
+        run: >
+          dotnet publish src/Crest/Crest.csproj -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=none -o out/standalone
+
+      - name: Publish — small exe (needs .NET 8 Desktop Runtime)
+        run: >
+          dotnet publish src/Crest/Crest.csproj -c Release -r win-x64 --self-contained false
+          -p:PublishSingleFile=true -p:DebugType=none -o out/small
+
+      - name: Smoke test — run the app, tour every view, screenshot it
+        shell: pwsh
+        run: |
+          Remove-Item "$env:APPDATA\Crest" -Recurse -Force -ErrorAction SilentlyContinue
+          $p = Start-Process -FilePath "out/standalone/Crest.exe" -ArgumentList "--tour", "$PWD/shots" -PassThru
+          if (-not $p.WaitForExit(150000)) { Stop-Process $p -Force; Write-Host "::warning::tour timed out" }
+          Write-Host "exit code: $($p.ExitCode)"
+          $log = "$env:APPDATA\Crest\crest.log"
+          if (Test-Path $log) { Copy-Item $log shots/crest.log; Get-Content $log }
+          $shots = @(Get-ChildItem shots -Filter *.png -ErrorAction SilentlyContinue)
+          Write-Host "screenshots: $($shots.Count)"
+          if ($shots.Count -lt 15) { Write-Host "::error::expected at least 15 screenshots"; exit 1 }
+          if ((Test-Path $log) -and ((Get-Content $log -Raw) -match 'fatal:|ui: |view \w+: |tour: System\.|capture \S+: ')) { Write-Host "::error::runtime errors in crest.log"; exit 1 }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: shots/
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item out/standalone/Crest.exe dist/Crest-win-x64.exe
+          Copy-Item out/small/Crest.exe dist/Crest-win-x64-small.exe
+          Compress-Archive -Path out/standalone/Crest.exe, README.md, LICENSE -DestinationPath dist/Crest-win-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Crest-win-x64
+          path: dist/
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/Crest-win-x64.exe
+            dist/Crest-win-x64-small.exe
+            dist/Crest-win-x64.zip
+          generate_release_notes: true

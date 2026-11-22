@@ -1,0 +1,176 @@
+using System;
+using System.Globalization;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
+using Crest.Core;
+using Crest.Services;
+
+namespace Crest.Views
+{
+    public partial class HomeView : UserControl, ITabView
+    {
+        readonly DispatcherTimer _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        bool _seeking, _syncing;
+
+        public HomeView()
+        {
+            InitializeComponent();
+            _timer.Tick += (s, e) => Tick();
+
+            PrevBtn.Click += async (s, e) => await MediaService.Instance.PreviousAsync();
+            NextBtn.Click += async (s, e) => await MediaService.Instance.NextAsync();
+            PlayBtn.Click += async (s, e) => await MediaService.Instance.TogglePlayPauseAsync();
+            SeekSlider.PreviewMouseLeftButtonDown += (s, e) => _seeking = true;
+            SeekSlider.PreviewMouseLeftButtonUp += async (s, e) =>
+            {
+                var to = TimeSpan.FromSeconds(SeekSlider.Value);
+                _seeking = false;
+                await MediaService.Instance.SeekAsync(to);
+            };
+            SeekSlider.ValueChanged += (s, e) => { if (_seeking) PosText.Text = Fmt(TimeSpan.FromSeconds(SeekSlider.Value)); };
+
+            VolSlider.ValueChanged += (s, e) =>
+            {
+                VolText.Text = $"{Math.Round(VolSlider.Value)}";
+                if (_syncing) return;
+                AudioService.Instance.Volume = (float)(VolSlider.Value / 100.0);
+                if (AudioService.Instance.Muted && VolSlider.Value > 0) { AudioService.Instance.Muted = false; MuteTile.IsChecked = false; }
+                UpdateVolGlyph();
+            };
+            BriSlider.ValueChanged += (s, e) =>
+            {
+                BriText.Text = $"{Math.Round(BriSlider.Value)}";
+                if (!_syncing) BrightnessService.Instance.Set((int)Math.Round(BriSlider.Value));
+            };
+            MuteTile.Click += (s, e) => { AudioService.Instance.Muted = MuteTile.IsChecked == true; UpdateVolGlyph(); };
+            MicTile.Click += (s, e) => AudioService.Instance.MicMuted = MicTile.IsChecked == true;
+            AwakeTile.Click += (s, e) => KeepAwake.Set(AwakeTile.IsChecked == true);
+            SnipTile.Click += (s, e) =>
+            {
+                NotchWindow.Instance?.Collapse();
+                Ui.Later(350, () => Ui.Open("ms-screenclip:"));
+            };
+            LockTile.Click += (s, e) => Win32.LockWorkStation();
+            WeatherMini.Click += (s, e) => NotchWindow.Instance?.SelectTab("Weather");
+
+            MediaService.Instance.Changed += () => { if (IsVisible) RefreshMedia(); };
+            AudioService.Instance.VolumeChanged += (v, m) => { if (IsVisible) SyncAudio(); };
+            BrightnessService.Instance.Changed += b => { if (IsVisible) SyncBrightness(); };
+            WeatherService.Instance.Updated += () => { if (IsVisible) RefreshWeather(); };
+        }
+
+        public void OnActivated()
+        {
+            RefreshMedia();
+            SyncAudio();
+            SyncBrightness();
+            RefreshWeather();
+            AwakeTile.IsChecked = KeepAwake.On;
+            MicTile.IsEnabled = AudioService.Instance.HasMic;
+            MicTile.IsChecked = AudioService.Instance.MicMuted;
+            Tick();
+            _timer.Start();
+            _ = WeatherService.Instance.RefreshIfStaleAsync();
+        }
+
+        public void OnDeactivated() => _timer.Stop();
+
+        void Tick()
+        {
+            var now = DateTime.Now;
+            ClockText.Text = now.ToString(CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains("H") ? "HH:mm" : "h:mm", CultureInfo.CurrentCulture);
+            DateText.Text = now.ToString("dddd, d MMMM", CultureInfo.CurrentCulture);
+            var md = MediaService.Instance;
+            if (!_seeking && md.HasSession && md.Duration > TimeSpan.Zero)
+            {
+                var pos = md.Position;
+                SeekSlider.Maximum = Math.Max(1, md.Duration.TotalSeconds);
+                SeekSlider.Value = Math.Min(SeekSlider.Maximum, pos.TotalSeconds);
+                PosText.Text = Fmt(pos);
+            }
+        }
+
+        void RefreshMedia()
+        {
+            var md = MediaService.Instance;
+            bool has = md.HasSession && !string.IsNullOrEmpty(md.Title);
+            TitleText.Text = has ? md.Title : "Nothing playing";
+            ArtistText.Text = has ? md.Artist : "Play something in Spotify, a browser or any media app";
+            AppText.Text = has && !string.IsNullOrEmpty(md.AppName) ? md.AppName.ToUpperInvariant() : "NOW PLAYING";
+            PlayBtn.Content = md.IsPlaying ? Glyphs.Pause : Glyphs.Play;
+            PlayBtn.IsEnabled = md.HasSession;
+            PrevBtn.IsEnabled = md.HasSession && md.CanPrev;
+            NextBtn.IsEnabled = md.HasSession && md.CanNext;
+            SeekRow.Visibility = md.HasSession && md.Duration > TimeSpan.Zero ? Visibility.Visible : Visibility.Hidden;
+            SeekSlider.IsEnabled = md.CanSeek;
+            DurText.Text = Fmt(md.Duration);
+            var tint = md.ArtColor ?? Ui.AccentColor;
+            SeekSlider.Foreground = new SolidColorBrush(tint);
+            if (md.Art != null)
+            {
+                ArtBox.Background = new ImageBrush(md.Art) { Stretch = Stretch.UniformToFill };
+                ArtGlow.Background = new ImageBrush(md.Art) { Stretch = Stretch.UniformToFill };
+                ArtPlaceholder.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                ArtBox.Background = Ui.Res("Card2Brush");
+                ArtGlow.Background = Brushes.Transparent;
+                ArtPlaceholder.Visibility = Visibility.Visible;
+            }
+            Tick();
+        }
+
+        void SyncAudio()
+        {
+            _syncing = true;
+            var a = AudioService.Instance;
+            VolSlider.IsEnabled = MuteTile.IsEnabled = a.Available;
+            VolSlider.Value = Math.Round(a.Volume * 100);
+            VolText.Text = $"{Math.Round(VolSlider.Value)}";
+            MuteTile.IsChecked = a.Muted;
+            _syncing = false;
+            UpdateVolGlyph();
+        }
+
+        void UpdateVolGlyph()
+        {
+            var a = AudioService.Instance;
+            double v = VolSlider.Value / 100.0;
+            VolGlyph.Text = a.Muted || v < 0.005 ? Glyphs.Mute : v < 0.34 ? Glyphs.Volume1 : v < 0.67 ? Glyphs.Volume2 : Glyphs.Volume3;
+        }
+
+        void SyncBrightness()
+        {
+            var b = BrightnessService.Instance;
+            BriRow.Visibility = b.Supported ? Visibility.Visible : Visibility.Collapsed;
+            if (!b.Supported) return;
+            _syncing = true;
+            BriSlider.Value = Math.Max(0, b.Current);
+            BriText.Text = $"{Math.Round(BriSlider.Value)}";
+            _syncing = false;
+        }
+
+        void RefreshWeather()
+        {
+            var w = WeatherService.Instance;
+            var s = SettingsStore.Current;
+            if (!w.HasLocation)
+            {
+                WeatherSymbol.Text = "☁";
+                WeatherTemp.Text = "";
+                WeatherCity.Text = "Set location";
+                return;
+            }
+            WeatherCity.Text = s.City ?? "";
+            if (w.Data == null) { WeatherTemp.Text = "--°"; return; }
+            WeatherSymbol.Text = WeatherService.Symbol(w.Data.Code, w.Data.IsDay);
+            WeatherTemp.Text = $"{Math.Round(w.Data.Temp)}°";
+        }
+
+        static string Fmt(TimeSpan t) => t.TotalHours >= 1 ? t.ToString(@"h\:mm\:ss") : $"{(int)t.TotalMinutes}:{t.Seconds:00}";
+    }
+}
