@@ -69,28 +69,28 @@ namespace Crest
 
                 // The Crest app window: every feature and settings page
                 AppWindow.ShowPage("Home");
-                var app = AppWindow.Current!;
-                app.Left = 40; app.Top = 60; app.Width = 1060; app.Height = 700;
+                var appWin = AppWindow.Current!;
+                appWin.Left = 40; appWin.Top = 60; appWin.Width = 1060; appWin.Height = 700;
                 await Task.Delay(1500);
                 foreach (var page in AppWindow.Pages)
                 {
                     if (page.Key == "Tools") LanDropService.Start();
                     if (page.Key == "Timers") TimerService.Instance.PomoToggle();
-                    app.Select(page.Key);
+                    appWin.Select(page.Key);
                     await Task.Delay(page.Key is "Weather" or "Units" or "AI" ? 2600 : 1100);
-                    app.CaptureTo(Path.Combine(_tourDir, "app-" + page.Key.ToLowerInvariant() + ".png"));
+                    appWin.CaptureTo(Path.Combine(_tourDir, "app-" + page.Key.ToLowerInvariant() + ".png"));
                     if (page.Key == "Timers")
                     {
                         TimerService.Instance.PomoToggle(); TimerService.Instance.PomoReset();
-                        if (app.View("Timers") is Views.TimersView timers)
+                        if (appWin.View("Timers") is Views.TimersView timers)
                         {
                             timers.AlarmMode.IsChecked = true;
                             await Task.Delay(700);
-                            app.CaptureTo(Path.Combine(_tourDir, "app-alarms.png"));
+                            appWin.CaptureTo(Path.Combine(_tourDir, "app-alarms.png"));
                         }
                     }
                 }
-                app.Hide();
+                appWin.Hide();
                 await Task.Delay(500);
 
                 // Spotlight hub: math, then apps/settings

@@ -197,7 +197,7 @@ namespace Crest.Views
         readonly Button _play = new Button(), _reset = new Button(), _extra = new Button();
         readonly WrapPanel _presets = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
         readonly RadioButton _timerMode = new RadioButton(), _focusMode = new RadioButton();
-        bool Focus => _focusMode.IsChecked == true;
+        bool FocusMode => _focusMode.IsChecked == true;
 
         public IslandTimers()
         {
@@ -244,9 +244,9 @@ namespace Crest.Views
             _play.SetResourceReference(BackgroundProperty, "AccentBrush");
             _play.Foreground = Brushes.Black;
             _reset.Content = Glyphs.Refresh;
-            _reset.Click += (s, e) => { if (Focus) T.PomoReset(); else T.CdReset(); Render(); };
-            _play.Click += (s, e) => { if (Focus) T.PomoToggle(); else T.CdToggle(); Render(); };
-            _extra.Click += (s, e) => { if (Focus) T.PomoSkip(); else T.CdSet((int)Math.Ceiling(T.CdLeft.TotalMinutes) + 1); Render(); };
+            _reset.Click += (s, e) => { if (FocusMode) T.PomoReset(); else T.CdReset(); Render(); };
+            _play.Click += (s, e) => { if (FocusMode) T.PomoToggle(); else T.CdToggle(); Render(); };
+            _extra.Click += (s, e) => { if (FocusMode) T.PomoSkip(); else T.CdSet((int)Math.Ceiling(T.CdLeft.TotalMinutes) + 1); Render(); };
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
             buttons.Children.Add(_reset); buttons.Children.Add(_play); buttons.Children.Add(_extra);
 
@@ -274,8 +274,8 @@ namespace Crest.Views
 
         void Render()
         {
-            _presets.Visibility = Focus ? Visibility.Collapsed : Visibility.Visible;
-            if (Focus)
+            _presets.Visibility = FocusMode ? Visibility.Collapsed : Visibility.Visible;
+            if (FocusMode)
             {
                 _ring.Progress = T.PomoProgress;
                 _big.Text = Ui.ClockCeil(T.PomoLeft);
@@ -294,7 +294,7 @@ namespace Crest.Views
                 _extra.FontFamily = (FontFamily)FindResource("UiFont");
                 _extra.ToolTip = "Add a minute";
             }
-            if (Focus) _extra.FontFamily = (FontFamily)FindResource("IconFont");
+            if (FocusMode) _extra.FontFamily = (FontFamily)FindResource("IconFont");
         }
     }
 

@@ -12,6 +12,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using Crest.Controls;
 using Crest.Core;
+using Crest.Services;
 using Crest.Views;
 
 namespace Crest
