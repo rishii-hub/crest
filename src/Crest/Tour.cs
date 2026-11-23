@@ -239,8 +239,9 @@ namespace Crest
 
                 // Shadow check on a white desktop: the shadow must be soft all round, with no grey box
                 var white = new Window { WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, Background = Brushes.White, ShowInTaskbar = false,
-                                         Left = 0, Top = 0, Width = SystemParameters.PrimaryScreenWidth, Height = 600, ShowActivated = false };
+                                         Left = 0, Top = 0, Width = SystemParameters.PrimaryScreenWidth, Height = 600, ShowActivated = false, Topmost = true };
                 white.Show();
+                Topmost = false; Topmost = true; // keep the notch above the white sheet
                 Expand("Home"); PinButton.IsChecked = true;
                 await Task.Delay(1500); Capture("shadow-on-white");
                 SettingsStore.Update(x => x.Style = "Island");
