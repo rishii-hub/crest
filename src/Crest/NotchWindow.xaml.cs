@@ -136,7 +136,8 @@ namespace Crest
         Size ExpandedBody => new Size(Math.Round(PageBase(_tab).Width * KE), Math.Round(PageBase(_tab).Height * KE));
         double ExpandedRadius => (Island ? 26 : 22) * KE;
         Size CollapsedWindow => new Size(Math.Round(400 * K) + 2 * Shoulder + 40 + 2 * (RowH + 18), Math.Round(56 * K) + Math.Max(TopGap, 5) + 14);
-        Size ExpandedWindow => new Size(Math.Round(560 * KE) + 2 * Shoulder + 40, Math.Round(296 * KE) + TopGap + 30);
+        // generous margins so the soft shadow is never cut off by the window edge
+        Size ExpandedWindow => new Size(Math.Round(560 * KE) + 2 * Shoulder + 110, Math.Round(296 * KE) + TopGap + 70);
 
         public bool IsExpanded => _expanded;
         public bool UserHidden => _userHidden;
@@ -678,10 +679,10 @@ namespace Crest
         void ApplyShadow(bool on)
         {
             double blur = S.Oled ? 0 : S.Shadow switch { "Subtle" => 16, "Medium" => 28, "Deep" => 44, _ => 0 };
-            if (!on || blur <= 0) { Notch.Effect = null; return; }
-            Notch.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            if (!on || blur <= 0) { NotchHost.Effect = null; return; }
+            NotchHost.Effect = new System.Windows.Media.Effects.DropShadowEffect
             {
-                BlurRadius = blur, ShadowDepth = blur / 4, Direction = 270, Opacity = S.Shadow == "Deep" ? 0.75 : 0.55, Color = Colors.Black,
+                BlurRadius = blur, ShadowDepth = blur / 4, Direction = 270, Opacity = S.Shadow switch { "Deep" => 0.6, "Medium" => 0.42, _ => 0.3 }, Color = Colors.Black,
                 RenderingBias = System.Windows.Media.Effects.RenderingBias.Performance
             };
         }

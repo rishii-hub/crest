@@ -237,6 +237,19 @@ namespace Crest
                 SettingsStore.Update(x => x.RestingInfo = "None");
                 await Task.Delay(800);
 
+                // Shadow check on a white desktop: the shadow must be soft all round, with no grey box
+                var white = new Window { WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, Background = Brushes.White, ShowInTaskbar = false,
+                                         Left = 0, Top = 0, Width = SystemParameters.PrimaryScreenWidth, Height = 600, ShowActivated = false };
+                white.Show();
+                Expand("Home"); PinButton.IsChecked = true;
+                await Task.Delay(1500); Capture("shadow-on-white");
+                SettingsStore.Update(x => x.Style = "Island");
+                await Task.Delay(1200); Capture("shadow-on-white-island");
+                SettingsStore.Update(x => x.Style = "Notch");
+                PinButton.IsChecked = false; Collapse();
+                await Task.Delay(600);
+                white.Close();
+
                 // Eyes in the resting notch, one per style, then asleep
                 foreach (var kind in Controls.NotchEyes.Styles)
                 {

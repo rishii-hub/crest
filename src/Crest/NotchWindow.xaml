@@ -40,6 +40,9 @@
       <TextBlock x:Name="BubbleGlyph" Style="{StaticResource Icon}" FontSize="13" Foreground="{DynamicResource AccentBrush}"/>
     </Grid>
 
+    <!-- The shadow lives on this unclipped wrapper: on the clipped notch itself it got cut off at the
+         notch's bounding box and showed up as grey corners. -->
+    <Grid x:Name="NotchHost">
     <Grid x:Name="Notch" HorizontalAlignment="Center" VerticalAlignment="Top" Width="208" Height="32" ClipToBounds="True"
           Stylus.IsPressAndHoldEnabled="False">
       <Grid.RenderTransform>
@@ -151,6 +154,7 @@
           </ContentControl>
         </Grid>
       </Grid>
+    </Grid>
     </Grid>
   </Grid>
 </Window>
