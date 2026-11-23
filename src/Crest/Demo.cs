@@ -40,7 +40,8 @@ namespace Crest
                 s.City = "Bhubaneswar"; s.Lat = 20.2961; s.Lon = 85.8245;
                 _ = WeatherService.Instance.RefreshAsync();
                 s.Eyes = "Pill"; s.EyesSleep = false; s.Lyrics = true; s.LyricsInNotch = true;
-                s.ExpandOnHover = true; s.HoverDelayMs = 150; s.Shadow = "Medium";
+                s.ExpandOnHover = true; s.HoverDelayMs = 150; s.Shadow = "Medium"; s.Size = "Large";
+                SpotlightService.EnsureIndex();
                 AudioViz.DemoMode = true;
                 NotesStore.Data.Text = "Ship Crest v2 ✨\nRecord the demo\nReply to issues";
                 TrayStore.Shelf.Add(TrayItem.FromPath(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)));
@@ -76,8 +77,8 @@ namespace Crest
 
                 // 2 · music + lyrics as a live activity
                 await Caption("Live activities", "Music from any app, with lyrics right in the notch");
-                MediaService.Instance.Demo("Midnight Drive", "The Crest Demo Band", Art(), Color.FromRgb(0xFF, 0x5E, 0x7E), TimeSpan.FromSeconds(204));
                 LyricsService.DemoSong(DemoLyrics());
+                MediaService.Instance.Demo("Midnight Drive", "The Crest Demo Band", Art(), Color.FromRgb(0xFF, 0x5E, 0x7E), TimeSpan.FromSeconds(204));
                 await Task.Delay(7000);
 
                 // 3 · hover to open: widgets
@@ -123,6 +124,7 @@ namespace Crest
                     await Type(spot, "10 km to mi");
                     await Task.Delay(1600);
                 }
+                SelectTab("Home");
                 Collapse();
                 await Task.Delay(900);
 
@@ -143,8 +145,8 @@ namespace Crest
                 AppWindow.ShowPage("Island");
                 var app = AppWindow.Current!;
                 app.Topmost = true;
-                app.Width = 1060; app.Height = 640;
-                app.Left = (screen.X - 1060) / 2; app.Top = screen.Y - 640 - 90;
+                app.Width = Math.Min(1000, screen.X - 80); app.Height = Math.Min(560, screen.Y - 160);
+                app.Left = (screen.X - app.Width) / 2; app.Top = screen.Y - app.Height - 20;
                 await Task.Delay(2200);
                 SettingsStore.Update(x => { var h = WidgetCatalog.Page("Home")!; h.Widgets[0].H = 2; h.Widgets[1].H = 2; });
                 await Glide(NotchPoint(0, 10), 800);

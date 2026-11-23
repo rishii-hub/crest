@@ -79,6 +79,7 @@ namespace Crest.Services
         internal static void DemoSong(IReadOnlyList<Line> lines)
         {
             _demoMode = true;
+            _cts?.Cancel();
             Status = "synced"; Lines = lines; Plain = null; Index = -1;
             Changed?.Invoke();
             Sync();
@@ -146,7 +147,7 @@ namespace Crest.Services
             try
             {
                 var (synced, plain) = await Find(title, artist, duration, cts.Token);
-                if (cts.IsCancellationRequested) return;
+                if (cts.IsCancellationRequested || _demoMode) return;
                 if (synced != null && Parse(synced) is { Count: > 0 } lines) Set("synced", lines, plain);
                 else if (!string.IsNullOrWhiteSpace(plain)) Set("plain", null, plain);
                 else Set("none");
