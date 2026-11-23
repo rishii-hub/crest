@@ -12,7 +12,7 @@ Native, open source, no account, no telemetry.</p>
   <a href="#build-from-source">Build</a>
 </p>
 
-<p align="center"><img src="docs/screenshots/island-home.png" width="620" alt="The Crest island"/></p>
+<p align="center"><img src=""C:\Users\rishi\Pictures\Screenshots\Screenshot 2026-11-23 133538.png"" width="620" alt="The Crest island"/></p>
 
 ---
 
