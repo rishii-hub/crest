@@ -283,7 +283,13 @@ namespace Crest.Views
 
                 var newPage = new Button { Style = Ui.StyleRes("Pill"), Content = "+ New widget page", HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 5, 12, 5) };
                 newPage.Click += (s2, e2) => { var p = WidgetCatalog.NewPage(); p.Widgets.Add(new WidgetSlot { Kind = "Clock" }); Commit(); };
-                body.Children.Add(newPage);
+                var reset = ConfirmButton("Reset pages & widgets", "Click again to reset", () => { SettingsStore.ResetIsland(); Render(); });
+                reset.Margin = new Thickness(8, 0, 0, 0);
+                reset.ToolTip = "Back to one Now page with music and at-a-glance";
+                var buttons = new WrapPanel();
+                buttons.Children.Add(newPage);
+                buttons.Children.Add(reset);
+                body.Children.Add(buttons);
 
                 if (S.WidgetPages.Any(p => p.Widgets.Any(w => w.Kind == "Countdown")))
                 {
@@ -352,6 +358,16 @@ namespace Crest.Views
             brow.Children.Add(LinkButton("Export backup…", ExportBackup));
             brow.Children.Add(LinkButton("Import backup…", ImportBackup));
             backup.Children.Add(brow);
+
+            var reset = Section(_left, "Reset");
+            Info(reset, "Start fresh", "Theme, island, widgets, live activities and behaviour go back to default. Your notes, clipboard, shelf, alarms, scripts, weather city and assistant setup stay.");
+            var rrow = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            var all = ConfirmButton("Reset all settings", "Click again to reset everything", () => { SettingsStore.ResetAll(); AppWindow.Current?.Reload(); });
+            rrow.Children.Add(all);
+            var isl = ConfirmButton("Reset island only", "Click again to reset the island", () => { SettingsStore.ResetIsland(); AppWindow.Current?.Reload(); });
+            isl.Margin = new Thickness(8, 0, 0, 0);
+            rrow.Children.Add(isl);
+            reset.Children.Add(rrow);
 
             var about = Section(_left, "Shortcuts");
             Info(about, "Ctrl + Alt + N", "Open / close the island");
@@ -627,6 +643,22 @@ namespace Crest.Views
             var body = new StackPanel();
             host.Children.Add(new Border { Style = Ui.StyleRes("Card"), Padding = new Thickness(14, 6, 14, 6), Child = body });
             return body;
+        }
+
+        /// <summary>A button that asks "Sure?" on the first click and acts on the second (within 4 s). No modal dialogs from the island.</summary>
+        static Button ConfirmButton(string text, string confirm, Action act)
+        {
+            var b = new Button { Style = Ui.StyleRes("Pill"), Content = text, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 5, 12, 5) };
+            bool armed = false;
+            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
+            timer.Tick += (s, e) => { timer.Stop(); armed = false; b.Content = text; b.ClearValue(ForegroundProperty); };
+            b.Click += (s, e) =>
+            {
+                if (!armed) { armed = true; b.Content = confirm; b.Foreground = Ui.Res("RedBrush"); timer.Start(); return; }
+                timer.Stop(); armed = false; b.Content = text; b.ClearValue(ForegroundProperty);
+                act();
+            };
+            return b;
         }
 
         static void Changed(bool saves)

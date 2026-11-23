@@ -198,5 +198,40 @@ namespace Crest.Core
             Save();
             Changed?.Invoke();
         }
+
+        /// <summary>
+        /// Every look-and-behaviour setting back to default. Your things stay: alarms, scripts, world clocks, today's counts, weather location,
+        /// assistant setup, app-launch history and the app window's position. Notes, clipboard and shelf live elsewhere and are untouched.
+        /// </summary>
+        public static void ResetAll()
+        {
+            var old = Current;
+            var fresh = new AppSettings
+            {
+                Alarms = old.Alarms, Automations = old.Automations, LaunchCounts = old.LaunchCounts,
+                City = old.City, Lat = old.Lat, Lon = old.Lon, TempUnit = old.TempUnit,
+                AiProvider = old.AiProvider, AiEndpoint = old.AiEndpoint, AiModel = old.AiModel, AiKeyProtected = old.AiKeyProtected,
+                LastUpdateCheck = old.LastUpdateCheck, NotifiedVersion = old.NotifiedVersion,
+                AppLeft = old.AppLeft, AppTop = old.AppTop, AppWidth = old.AppWidth, AppHeight = old.AppHeight,
+                WorldClocks = old.WorldClocks, PomoDate = old.PomoDate, PomoDone = old.PomoDone,
+                WaterDate = old.WaterDate, WaterCount = old.WaterCount, FirstRun = false,
+            };
+            fresh.NowWidgets = new List<string> { "Music", "Glance" };
+            Current = fresh;
+            SaveNow();
+            Changed?.Invoke();
+        }
+
+        /// <summary>Island pages and widgets back to the default: one Now page with music and at-a-glance.</summary>
+        public static void ResetIsland()
+        {
+            Current.WidgetPages = new List<IslandPageDef>();
+            Current.NowWidgets = new List<string> { "Music", "Glance" };
+            Current.IslandPages = new List<string> { "Home", "Shelf", "Timers" };
+            Current.CountdownLabel = ""; Current.CountdownDate = "";
+            Crest.Views.WidgetCatalog.EnsurePages();
+            SaveNow();
+            Changed?.Invoke();
+        }
     }
 }

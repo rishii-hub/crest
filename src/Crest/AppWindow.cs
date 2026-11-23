@@ -285,6 +285,18 @@ namespace Crest
             catch { }
         }
 
+        /// <summary>Rebuild every page from the current settings (after a reset).</summary>
+        public void Reload()
+        {
+            _sig = ThemeService.Signature;
+            (_host.Content as ITabView)?.OnDeactivated();
+            _host.Content = null;
+            _views.Clear();
+            Build();
+            ApplyChrome();
+            Select(_page, force: true);
+        }
+
         public FrameworkElement? View(string key) => _views.TryGetValue(key, out var v) ? v : null;
 
         /// <summary>Tour / README screenshots of the app window.</summary>
