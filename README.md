@@ -50,13 +50,20 @@ Small and quiet, like the Mac notch apps: a row of tiny page icons with a slidin
 
 | Island page | |
 |---|---|
-| **Now** | Album art, title, controls and a seek bar, plus the time, weather, battery and your next timer or alarm. |
+| **Now** | Your own widgets, side by side (see below). By default: music, plus the time, weather, battery and what's next. |
 | **Shelf** | Drop files on the island, drag them out later. |
 | **Timers** | One-tap 1–45 minute timers, or Pomodoro. |
 | **Clipboard** | Your latest copies; click one to copy it again (`Ctrl+Alt+V`). |
 | **Links** | Pinned apps and sites. |
 
-Pick which pages the island shows in *Crest → Island*. `Ctrl+Alt+Space` opens search in the island.
+Pick which pages the island shows in *Crest → Island*.
+
+**Widgets.** Build the Now page from up to four spaces of widgets, in any order: Music, **Lyrics**, At a glance, Clock, Weather, Battery, Timer, System, Calendar, Quick toggles, Countdown (days until a date you pick), Note and Screen time. The island resizes to fit what you choose. *Crest → Island → Now page widgets.*
+
+**Lyrics.** Synced lyrics for whatever is playing (Spotify, YouTube or YouTube Music in any browser, Apple Music, anything that shows up in Windows' media controls). They appear in the Lyrics widget and, optionally, as a single line in the closed notch while the song plays. Off by default: turning it on sends the song's title and artist to [LRCLIB](https://lrclib.net), a free, open lyrics database. Results are cached on your PC.
+
+<p><img src="docs/screenshots/widgets-music-lyrics.png" width="49%"/> <img src="docs/screenshots/widgets-calendar-timer-toggles-note.png" width="49%"/></p>
+<p><img src="docs/screenshots/widgets-clock-weather-battery-system.png" width="49%"/> <img src="docs/screenshots/widgets-countdown-screentime-glance.png" width="49%"/></p> `Ctrl+Alt+Space` opens search in the island.
 
 ### The Crest app (tray icon, or the ⊞ button on the island)
 A normal window with a sidebar, like the Mac notch apps' settings windows, holding every feature at full size and all settings. Any page can be popped out as a floating widget.
@@ -152,7 +159,7 @@ Live activities: <img src="docs/screenshots/split-pill.png" height="70"/> <img s
 Settings and data are stored in `%AppData%\Crest`. To uninstall, quit from the tray, delete the exe, and delete that folder.
 
 ## Privacy
-- Nothing leaves your PC except weather requests to Open-Meteo (after you set a location), currency rates from the ECB, and Assistant prompts, which go only to the AI endpoint you configure yourself.
+- Nothing leaves your PC except weather requests to Open-Meteo (after you set a location), currency rates from the ECB, song title and artist to LRCLIB if you turn lyrics on, and Assistant prompts, which go only to the AI endpoint you configure yourself.
 - LAN Drop is off by default. When on, it listens on your local network only, every upload needs the 6-digit PIN, five wrong PINs lock that device out, and every file waits for you to press Accept.
 - The Live Activity pipe only accepts connections from your own Windows user.
 - Clipboard history stays local. Images are kept in memory only, unless you pin them.
