@@ -15,52 +15,101 @@ using Crest.Services;
 
 namespace Crest.Views
 {
-    public sealed record WidgetDef(string Key, string Name, int Units, string Glyph, string Sub);
+    public sealed record WidgetDef(string Key, string Name, int W, int H, string Glyph, string Sub);
 
-    /// <summary>Widgets you can put on the island's Now page. One unit is a small square; music and lyrics take two.</summary>
+    /// <summary>
+    /// Widgets and the island pages that hold them. A page is a grid four columns wide and up to two rows tall;
+    /// every widget can be any size from 1×1 to 4×2 and widgets are packed in order, left to right, top to bottom.
+    /// </summary>
     public static class WidgetCatalog
     {
-        public const int MaxUnits = 4;
-        public const double Unit = 150, Gap = 10;
+        static AppSettings S => SettingsStore.Current;
+        public const int Cols = 4, Rows = 2;
+        public const double Unit = 150, UnitH = 134, Gap = 10;
 
         public static readonly WidgetDef[] All =
         {
-            new("Music", "Music", 2, Glyphs.Music, "Album art, controls and a seek bar"),
-            new("Lyrics", "Lyrics", 2, "", "Synced lyrics for whatever is playing"),
-            new("Glance", "At a glance", 1, Glyphs.Home, "Time, weather, battery and what's next"),
-            new("Clock", "Clock", 1, "\uE917", "Big time and date"),
-            new("Weather", "Weather", 1, Glyphs.Cloud, "Now, with today's high and low"),
-            new("Battery", "Battery", 1, Glyphs.Battery, "Charge and power state"),
-            new("Timer", "Timer", 1, Glyphs.Stopwatch, "Tap to start 5 or 25 minutes"),
-            new("System", "System", 1, Glyphs.Chart, "CPU and memory"),
-            new("Calendar", "Calendar", 1, Glyphs.Calendar, "This month"),
-            new("Toggles", "Quick toggles", 1, "", "Mute, mic, screenshot, lock"),
-            new("Countdown", "Countdown", 1, "", "Days until a date you choose"),
-            new("Note", "Note", 1, Glyphs.Note, "Your notes and to-dos at a glance"),
-            new("ScreenTime", "Screen time", 1, "", "Today so far"),
+            new("Music", "Music", 2, 1, Glyphs.Music, "Album art, controls and a seek bar"),
+            new("Lyrics", "Lyrics", 2, 1, "\uE8D2", "Synced lyrics for whatever is playing"),
+            new("Glance", "At a glance", 1, 1, Glyphs.Home, "Time, weather, battery and what's next"),
+            new("Clock", "Clock", 1, 1, "\uE917", "Big time and date"),
+            new("Weather", "Weather", 1, 1, Glyphs.Cloud, "Now; wider shows the hours, taller the week"),
+            new("Battery", "Battery", 1, 1, Glyphs.Battery, "Charge and power state"),
+            new("Timer", "Timer", 1, 1, Glyphs.Stopwatch, "Tap to start 5 or 25 minutes"),
+            new("System", "System", 1, 1, Glyphs.Chart, "CPU and memory"),
+            new("Calendar", "Calendar", 1, 1, Glyphs.Calendar, "This month"),
+            new("Toggles", "Quick toggles", 1, 1, "\uE9E9", "Mute, mic, screenshot, lock"),
+            new("Countdown", "Countdown", 1, 1, "\uE787", "Days until a date you choose"),
+            new("Note", "Note", 1, 1, Glyphs.Note, "Your notes and to-dos at a glance"),
+            new("ScreenTime", "Screen time", 1, 1, "\uE823", "Today so far"),
         };
 
-        public static WidgetDef? Get(string key) => All.FirstOrDefault(w => w.Key == key);
+        public static readonly (int W, int H)[] Sizes = { (1, 1), (2, 1), (3, 1), (4, 1), (1, 2), (2, 2), (3, 2), (4, 2) };
+        public static readonly string[] PageGlyphs = { Glyphs.Home, "\uE80F", Glyphs.Music, Glyphs.Chart, Glyphs.Calendar, Glyphs.Cloud, "\uE734", "\uEB51", "\uE7FC", "\uE821", "\uE943", "\uE7BE" };
 
-        /// <summary>The widgets that are on, valid and within the space limit.</summary>
-        public static List<WidgetDef> Active()
+        public static WidgetDef? Get(string key) => All.FirstOrDefault(w => w.Key == key);
+        public static IslandPageDef? Page(string? id) => id == null ? null : S.WidgetPages.FirstOrDefault(p => p.Id == id);
+
+        /// <summary>First run on 1.8: turn the old single Now page into the first widget page.</summary>
+        public static void EnsurePages()
         {
-            var list = new List<WidgetDef>();
-            int used = 0;
-            foreach (var k in SettingsStore.Current.NowWidgets)
-                if (Get(k) is WidgetDef d && used + d.Units <= MaxUnits && !list.Contains(d)) { list.Add(d); used += d.Units; }
-            if (list.Count == 0) list.Add(Get("Glance")!);
-            return list;
+            if (S.WidgetPages.Count > 0) return;
+            var home = new IslandPageDef { Id = "Home", Name = "Now", Glyph = Glyphs.Home };
+            foreach (var k in S.NowWidgets)
+                if (Get(k) is WidgetDef d) home.Widgets.Add(new WidgetSlot { Kind = k, W = d.W, H = d.H });
+            if (home.Widgets.Count == 0) { home.Widgets.Add(new WidgetSlot { Kind = "Music", W = 2 }); home.Widgets.Add(new WidgetSlot { Kind = "Glance" }); }
+            S.WidgetPages.Add(home);
+            SettingsStore.Save();
         }
 
-        public static int UsedUnits() => Active().Sum(d => d.Units);
-        public static double Width(int units) => units * Unit + (units - 1) * Gap;
-
-        /// <summary>Width of the Now page content for the current widgets.</summary>
-        public static double BoardWidth()
+        public static IslandPageDef NewPage(string name = "Widgets")
         {
-            var a = Active();
-            return a.Sum(d => Width(d.Units)) + (a.Count - 1) * Gap;
+            int n = 2;
+            string unique = name;
+            while (S.WidgetPages.Any(p => p.Name == unique)) unique = $"{name} {n++}";
+            var page = new IslandPageDef { Name = unique, Glyph = PageGlyphs[S.WidgetPages.Count % PageGlyphs.Length] };
+            S.WidgetPages.Add(page);
+            S.IslandPages.Add(page.Id);
+            return page;
+        }
+
+        public static double Width(int w) => w * Unit + (w - 1) * Gap;
+        public static double Height(int h) => h * UnitH + (h - 1) * Gap;
+
+        /// <summary>Where each widget goes. Widgets that don't fit anywhere come back with Col = -1.</summary>
+        public static List<(WidgetSlot Slot, int Col, int Row)> Pack(IslandPageDef page)
+        {
+            var used = new bool[Rows, Cols];
+            var result = new List<(WidgetSlot, int, int)>();
+            foreach (var w in page.Widgets)
+            {
+                int ww = Math.Clamp(w.W, 1, Cols), hh = Math.Clamp(w.H, 1, Rows);
+                (int c, int r) spot = (-1, -1);
+                for (int r = 0; r + hh <= Rows && spot.c < 0; r++)
+                    for (int c = 0; c + ww <= Cols && spot.c < 0; c++)
+                    {
+                        bool free = true;
+                        for (int y = r; y < r + hh && free; y++)
+                            for (int x = c; x < c + ww && free; x++)
+                                if (used[y, x]) free = false;
+                        if (free) spot = (c, r);
+                    }
+                if (spot.c >= 0)
+                    for (int y = spot.r; y < spot.r + hh; y++)
+                        for (int x = spot.c; x < spot.c + ww; x++)
+                            used[y, x] = true;
+                result.Add((w, spot.c, spot.r));
+            }
+            return result;
+        }
+
+        /// <summary>Content size of a page: only as wide and tall as its widgets need.</summary>
+        public static Size PageSize(IslandPageDef page)
+        {
+            int cols = 1, rows = 1;
+            foreach (var (slot, c, r) in Pack(page))
+                if (c >= 0) { cols = Math.Max(cols, c + Math.Clamp(slot.W, 1, Cols)); rows = Math.Max(rows, r + Math.Clamp(slot.H, 1, Rows)); }
+            return new Size(Width(cols), Height(rows));
         }
 
         public static Widget Create(string key) => key switch
@@ -79,6 +128,62 @@ namespace Crest.Views
             "ScreenTime" => new ScreenTimeWidget(),
             _ => new GlanceWidget(),
         };
+
+        /// <summary>Right-click menu for a widget, on the island or in the editor.</summary>
+        public static ContextMenu Menu(IslandPageDef page, WidgetSlot slot, Action? changed = null)
+        {
+            var menu = new ContextMenu();
+            void Commit() { SettingsStore.Update(_ => { }); changed?.Invoke(); }
+            var size = new MenuItem { Header = "Size" };
+            foreach (var (w, h) in Sizes)
+            {
+                var item = new MenuItem { Header = $"{w} × {h}", IsCheckable = true, IsChecked = slot.W == w && slot.H == h };
+                item.Click += (s, e) => { slot.W = w; slot.H = h; Commit(); };
+                size.Items.Add(item);
+            }
+            menu.Items.Add(size);
+            var move = new MenuItem { Header = "Move to page" };
+            foreach (var p in S.WidgetPages)
+            {
+                var target = p;
+                var item = new MenuItem { Header = p.Name, IsEnabled = p != page };
+                item.Click += (s, e) => { page.Widgets.Remove(slot); target.Widgets.Add(slot); if (!S.IslandPages.Contains(target.Id)) S.IslandPages.Add(target.Id); Commit(); };
+                move.Items.Add(item);
+            }
+            var fresh = new MenuItem { Header = "New page" };
+            fresh.Click += (s, e) => { var np = NewPage(); page.Widgets.Remove(slot); np.Widgets.Add(slot); Commit(); };
+            move.Items.Add(new Separator());
+            move.Items.Add(fresh);
+            menu.Items.Add(move);
+            var left = new MenuItem { Header = "Move earlier", IsEnabled = page.Widgets.IndexOf(slot) > 0 };
+            left.Click += (s, e) => { int i = page.Widgets.IndexOf(slot); page.Widgets.RemoveAt(i); page.Widgets.Insert(i - 1, slot); Commit(); };
+            var right = new MenuItem { Header = "Move later", IsEnabled = page.Widgets.IndexOf(slot) < page.Widgets.Count - 1 };
+            right.Click += (s, e) => { int i = page.Widgets.IndexOf(slot); page.Widgets.RemoveAt(i); page.Widgets.Insert(i + 1, slot); Commit(); };
+            menu.Items.Add(left);
+            menu.Items.Add(right);
+            var remove = new MenuItem { Header = "Remove" };
+            remove.Click += (s, e) => { page.Widgets.Remove(slot); Commit(); };
+            menu.Items.Add(remove);
+            menu.Items.Add(new Separator());
+            var edit = new MenuItem { Header = "Customise pages and widgets…" };
+            edit.Click += (s, e) => AppWindow.ShowPage("Island");
+            menu.Items.Add(edit);
+            return menu;
+        }
+
+        /// <summary>"Add widget" menu for a page.</summary>
+        public static ContextMenu AddMenu(IslandPageDef page, Action? changed = null)
+        {
+            var menu = new ContextMenu();
+            foreach (var d in All)
+            {
+                var def = d;
+                var item = new MenuItem { Header = d.Name, ToolTip = d.Sub };
+                item.Click += (s, e) => { page.Widgets.Add(new WidgetSlot { Kind = def.Key, W = def.W, H = def.H }); SettingsStore.Update(_ => { }); changed?.Invoke(); };
+                menu.Items.Add(item);
+            }
+            return menu;
+        }
     }
 
     /// <summary>A card on the Now page. Start/Stop bracket the time it's visible, so hidden widgets cost nothing.</summary>
@@ -95,6 +200,8 @@ namespace Crest.Views
             _tick.Tick += (s, e) => Tick();
         }
         public virtual void Start() { Tick(); _tick.Start(); }
+        /// <summary>Called with the widget's size in grid cells (1–4 wide, 1–2 tall) so it can lay itself out.</summary>
+        public virtual void Resize(int w, int h) { }
         public virtual void Stop() => _tick.Stop();
         protected virtual void Tick() { }
 
@@ -126,39 +233,76 @@ namespace Crest.Views
     }
 
     // ------------------------------------------------------------------ the board
-    /// <summary>The island's Now page: the widgets you picked, side by side.</summary>
+    /// <summary>One widget page of the island: your widgets, packed into a 4 × 2 grid.</summary>
     public sealed class WidgetBoard : UserControl, ITabView
     {
-        readonly StackPanel _row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+        readonly string _pageId;
+        readonly Canvas _canvas = new Canvas { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top };
         readonly List<Widget> _widgets = new List<Widget>();
         string _sig = "";
         bool _active;
 
-        public WidgetBoard()
+        public WidgetBoard(string pageId)
         {
-            Content = _row;
+            _pageId = pageId;
+            Content = _canvas;
             Build();
-            SettingsStore.Changed += () => { if (string.Join(",", WidgetCatalog.Active().Select(d => d.Key)) != _sig) Build(); };
+            SettingsStore.Changed += () => { if (Signature() != _sig) Build(); };
+        }
+
+        string Signature()
+        {
+            var p = WidgetCatalog.Page(_pageId);
+            return p == null ? "" : string.Join(",", p.Widgets.Select(w => $"{w.Id}:{w.Kind}:{w.W}x{w.H}"));
         }
 
         void Build()
         {
             foreach (var w in _widgets) w.Stop();
             _widgets.Clear();
-            _row.Children.Clear();
-            var defs = WidgetCatalog.Active();
-            _sig = string.Join(",", defs.Select(d => d.Key));
-            for (int i = 0; i < defs.Count; i++)
+            _canvas.Children.Clear();
+            _sig = Signature();
+            var page = WidgetCatalog.Page(_pageId);
+            if (page == null) return;
+            var size = WidgetCatalog.PageSize(page);
+            _canvas.Width = size.Width;
+            _canvas.Height = size.Height;
+            if (page.Widgets.Count == 0)
             {
+                var add = new Button { Style = Ui.StyleRes("Pill"), Content = "+ Add a widget", Padding = new Thickness(14, 6, 14, 6), Width = WidgetCatalog.Width(1), Height = 36 };
+                add.Click += (s, e) => { var m = WidgetCatalog.AddMenu(page); m.PlacementTarget = add; Hold(m); m.IsOpen = true; };
+                Canvas.SetTop(add, (WidgetCatalog.UnitH - 36) / 2);
+                _canvas.Children.Add(add);
+                return;
+            }
+            foreach (var (slot, col, row) in WidgetCatalog.Pack(page))
+            {
+                if (col < 0) continue; // doesn't fit; the editor says so
                 Widget w;
-                try { w = WidgetCatalog.Create(defs[i].Key); }
-                catch (Exception ex) { Log.Error("widget " + defs[i].Key, ex); continue; }
-                w.Width = WidgetCatalog.Width(defs[i].Units);
-                w.Margin = new Thickness(i == 0 ? 0 : WidgetCatalog.Gap, 0, 0, 0);
+                try { w = WidgetCatalog.Create(slot.Kind); }
+                catch (Exception ex) { Log.Error("widget " + slot.Kind, ex); continue; }
+                int ww = Math.Clamp(slot.W, 1, WidgetCatalog.Cols), hh = Math.Clamp(slot.H, 1, WidgetCatalog.Rows);
+                w.Width = WidgetCatalog.Width(ww);
+                w.Height = WidgetCatalog.Height(hh);
+                w.Resize(ww, hh);
+                Canvas.SetLeft(w, col * (WidgetCatalog.Unit + WidgetCatalog.Gap));
+                Canvas.SetTop(w, row * (WidgetCatalog.UnitH + WidgetCatalog.Gap));
+                var s2 = slot;
+                w.ContextMenuOpening += (s, e) => { var m = WidgetCatalog.Menu(page, s2); Hold(m); w.ContextMenu = m; };
+                w.ContextMenu = new ContextMenu(); // placeholder so right-click raises ContextMenuOpening
                 _widgets.Add(w);
-                _row.Children.Add(w);
+                _canvas.Children.Add(w);
                 if (_active) w.Start();
             }
+        }
+
+        /// <summary>Keep the island open while a menu from it is showing.</summary>
+        static void Hold(ContextMenu m)
+        {
+            var notch = NotchWindow.Instance;
+            if (notch == null) return;
+            notch.DragOut = true;
+            m.Closed += (s, e) => notch.DragOut = false;
         }
 
         public void OnActivated() { _active = true; foreach (var w in _widgets) w.Start(); }
@@ -256,6 +400,29 @@ namespace Crest.Views
         public override void Start() { _running = true; Refresh(); base.Start(); }
         public override void Stop() { _running = false; _spectrum.Running = false; base.Stop(); }
 
+        bool _small;
+        public override void Resize(int w, int h)
+        {
+            _small = w == 1;
+            double art = h >= 2 ? (w == 1 ? 110 : 150) : w == 1 ? 46 : 58;
+            _art.Width = _art.Height = art;
+            _art.CornerRadius = new CornerRadius(art / 4.6);
+            _artGlyph.FontSize = art / 2.8;
+            _title.FontSize = h >= 2 || w >= 3 ? 15.5 : 13.5;
+            _prev.Visibility = _next.Visibility = _small ? Visibility.Collapsed : Visibility.Visible;
+            for (int i = 1; i < _launch.Children.Count; i++) _launch.Children[i].Visibility = _small && h == 1 ? Visibility.Collapsed : Visibility.Visible;
+            _spectrum.Width = w >= 3 ? 60 : 34;
+            if (h >= 2 && w == 1)
+            {
+                // tall and narrow: art on top, text underneath
+                DockPanel.SetDock(_art, Dock.Top);
+                _art.HorizontalAlignment = HorizontalAlignment.Center;
+                ((FrameworkElement)_title.Parent).Margin = new Thickness(0);
+                ((FrameworkElement)((FrameworkElement)_title.Parent).Parent).Margin = new Thickness(0, 8, 0, 0);
+            }
+            if (_small && h == 1) _seekRow.Margin = new Thickness(0, 4, 0, 0);
+        }
+
         static string Fmt(TimeSpan t) => t.TotalHours >= 1 ? t.ToString(@"h\:mm\:ss") : $"{(int)t.TotalMinutes}:{t.Seconds:00}";
 
         void Refresh()
@@ -269,7 +436,7 @@ namespace Crest.Views
             _play.Content = md.IsPlaying ? Glyphs.Pause : Glyphs.Play;
             _prev.IsEnabled = md.CanPrev;
             _next.IsEnabled = md.CanNext;
-            _seekRow.Visibility = has && md.Duration > TimeSpan.Zero ? Visibility.Visible : Visibility.Hidden;
+            _seekRow.Visibility = has && md.Duration > TimeSpan.Zero && !(_small && Height < 200) ? Visibility.Visible : Visibility.Collapsed;
             _seek.IsEnabled = md.CanSeek;
             _dur.Text = Fmt(md.Duration);
             var tint = new SolidColorBrush(md.ArtColor ?? Ui.AccentColor);
@@ -333,6 +500,17 @@ namespace Crest.Views
 
         public override void Start() { _running = true; Render(false); base.Start(); }
         public override void Stop() { _running = false; base.Stop(); }
+
+        int _context = 1;
+        public override void Resize(int w, int h)
+        {
+            _cur.FontSize = h >= 2 ? (w >= 3 ? 22 : 18) : w == 1 ? 13 : w >= 3 ? 17 : 15;
+            _cur.MaxHeight = _cur.FontSize * (h >= 2 ? 4.2 : 2.8);
+            _prev.FontSize = _next.FontSize = h >= 2 ? 13 : 11.5;
+            _context = w == 1 && h == 1 ? 0 : 1;
+            _prev.Visibility = _next.Visibility = _context == 0 ? Visibility.Collapsed : Visibility.Visible;
+            if (h >= 2) { _prev.TextWrapping = _next.TextWrapping = TextWrapping.Wrap; _prev.MaxHeight = _next.MaxHeight = 40; }
+        }
 
         void Render(bool animate)
         {
@@ -446,6 +624,12 @@ namespace Crest.Views
     public sealed class ClockWidget : Widget
     {
         readonly TextBlock _time = Big("", 34), _sec = Label("", 12, "Text3Brush"), _date = Label("", 11.5), _day = Label("", 11, "Text3Brush");
+        public override void Resize(int w, int h)
+        {
+            _time.FontSize = h >= 2 ? (w >= 2 ? 72 : 44) : w >= 2 ? 46 : 34;
+            _sec.FontSize = _time.FontSize * 0.36;
+            if (w >= 2 || h >= 2) { foreach (UIElement c in ((StackPanel)Child).Children) if (c is FrameworkElement f) f.HorizontalAlignment = HorizontalAlignment.Center; }
+        }
         public ClockWidget() : base(1000)
         {
             _time.FontWeight = FontWeights.Light;
@@ -472,6 +656,16 @@ namespace Crest.Views
     public sealed class WeatherWidget : Widget
     {
         readonly TextBlock _sym = new TextBlock { FontSize = 26 }, _temp = Big("", 28), _desc = Label("", 11.5), _hl = Label("", 11, "Text3Brush"), _place = Label("", 10.5, "Text3Brush");
+        readonly UniformGrid _hours = new UniformGrid { Rows = 1, Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        readonly StackPanel _days = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+        int _w = 1, _h = 1;
+        public override void Resize(int w, int h)
+        {
+            _w = w; _h = h;
+            _hours.Visibility = w >= 2 ? Visibility.Visible : Visibility.Collapsed;
+            _hours.Columns = Math.Max(1, (w - 1) * 3 + 1);
+            _days.Visibility = h >= 2 ? Visibility.Visible : Visibility.Collapsed;
+        }
         public WeatherWidget() : base(60_000)
         {
             _sym.SetResourceReference(TextBlock.FontFamilyProperty, "EmojiFont");
@@ -481,9 +675,17 @@ namespace Crest.Views
             _sym.VerticalAlignment = VerticalAlignment.Center;
             top.Children.Add(_sym);
             top.Children.Add(_temp);
-            var s = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            var s = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Width = 126 };
             s.Children.Add(_place); s.Children.Add(top); s.Children.Add(_desc); s.Children.Add(_hl);
-            Child = s;
+            var row = new DockPanel();
+            DockPanel.SetDock(s, Dock.Left);
+            row.Children.Add(s);
+            row.Children.Add(_hours);
+            var all = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            all.Children.Add(row);
+            all.Children.Add(_days);
+            Child = all;
+            _hours.Visibility = _days.Visibility = Visibility.Collapsed;
             OpenOnClick("Weather");
             WeatherService.Instance.Updated += () => { if (IsVisible) Tick(); };
         }
@@ -497,6 +699,34 @@ namespace Crest.Views
             _sym.Text = WeatherService.Symbol(d.Code, d.IsDay);
             _desc.Text = WeatherService.Describe(d.Code);
             _hl.Text = d.Days.Count > 0 ? $"H {Math.Round(d.Days[0].Max)}°  L {Math.Round(d.Days[0].Min)}°" : $"Feels {Math.Round(d.Feels)}°";
+            _hours.Children.Clear();
+            if (_w >= 2)
+                foreach (var hr in d.Hours.Take(_hours.Columns))
+                {
+                    var c = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+                    var t = Label(hr.Time, 10.5, "Text3Brush"); t.HorizontalAlignment = HorizontalAlignment.Center;
+                    var e = new TextBlock { Text = hr.Symbol, FontSize = 16, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 4) };
+                    e.SetResourceReference(TextBlock.FontFamilyProperty, "EmojiFont");
+                    var v = Label(hr.Temp, 12, "TextBrush", FontWeights.SemiBold); v.HorizontalAlignment = HorizontalAlignment.Center;
+                    c.Children.Add(t); c.Children.Add(e); c.Children.Add(v);
+                    _hours.Children.Add(c);
+                }
+            _days.Children.Clear();
+            if (_h >= 2)
+                foreach (var day in d.Days.Take(5))
+                {
+                    var r = new DockPanel { Margin = new Thickness(0, 3, 0, 3) };
+                    var hi = Label($"{Math.Round(day.Max)}°", 12, "TextBrush", FontWeights.SemiBold); hi.Width = 34; hi.TextAlignment = TextAlignment.Right;
+                    var lo = Label($"{Math.Round(day.Min)}°", 12, "Text3Brush"); lo.Width = 34; lo.TextAlignment = TextAlignment.Right;
+                    DockPanel.SetDock(hi, Dock.Right); DockPanel.SetDock(lo, Dock.Right);
+                    r.Children.Add(hi); r.Children.Add(lo);
+                    var e = new TextBlock { Text = day.Symbol, FontSize = 14, Width = 26 };
+                    e.SetResourceReference(TextBlock.FontFamilyProperty, "EmojiFont");
+                    DockPanel.SetDock(e, Dock.Left);
+                    r.Children.Add(e);
+                    r.Children.Add(Label(day.Day, 12, "TextBrush"));
+                    _days.Children.Add(r);
+                }
         }
     }
 
@@ -574,6 +804,13 @@ namespace Crest.Views
         readonly RingProgress _cpu = new RingProgress { Width = 50, Height = 50, Thickness = 4 }, _ram = new RingProgress { Width = 50, Height = 50, Thickness = 4 };
         readonly TextBlock _cpuT = Label("", 11, "TextBrush", FontWeights.SemiBold), _ramT = Label("", 11, "TextBrush", FontWeights.SemiBold);
         long _idle, _kernel, _user;
+        public override void Resize(int w, int h)
+        {
+            double size = h >= 2 ? 96 : w >= 2 ? 64 : 50;
+            foreach (var r in new[] { _cpu, _ram }) { r.Width = r.Height = size; ((FrameworkElement)r.Parent).Width = ((FrameworkElement)r.Parent).Height = size; r.Thickness = size / 12; }
+            _cpuT.FontSize = _ramT.FontSize = size / 4.4;
+            foreach (var r in new[] { _cpu, _ram }) ((FrameworkElement)((FrameworkElement)r.Parent).Parent).Margin = new Thickness(w >= 2 ? 14 : 4, 0, w >= 2 ? 14 : 4, 0);
+        }
         public SystemWidget() : base(1500)
         {
             _cpu.SetResourceReference(RingProgress.RingBrushProperty, "AccentBrush");
@@ -617,16 +854,28 @@ namespace Crest.Views
     {
         readonly TextBlock _month = Label("", 11, "AccentBrush", FontWeights.SemiBold);
         readonly UniformGrid _grid = new UniformGrid { Columns = 7 };
+        readonly StackPanel _today = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 16, 0), Visibility = Visibility.Collapsed };
+        double _cell = 9;
         int _day = -1;
+        public override void Resize(int w, int h)
+        {
+            _cell = h >= 2 ? 13 : 9;
+            _today.Visibility = w >= 2 ? Visibility.Visible : Visibility.Collapsed;
+            _day = -1;
+        }
         public CalendarWidget() : base(60_000)
         {
             Padding = new Thickness(10, 8, 10, 8);
             _month.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
-            var s = new StackPanel();
+            var s = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             s.Children.Add(_month);
             _grid.Margin = new Thickness(0, 3, 0, 0);
             s.Children.Add(_grid);
-            Child = s;
+            var row = new DockPanel();
+            DockPanel.SetDock(_today, Dock.Left);
+            row.Children.Add(_today);
+            row.Children.Add(s);
+            Child = row;
             OpenOnClick("Clock");
         }
         protected override void Tick()
@@ -635,23 +884,28 @@ namespace Crest.Views
             if (today.Day == _day) return;
             _day = today.Day;
             _month.Text = today.ToString("MMMM", CultureInfo.CurrentCulture).ToUpperInvariant();
+            _today.Children.Clear();
+            var dn = Label(today.ToString("dddd", CultureInfo.CurrentCulture), 12, "AccentBrush", FontWeights.SemiBold);
+            dn.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
+            _today.Children.Add(dn);
+            _today.Children.Add(Big(today.Day.ToString(), 46));
             _grid.Children.Clear();
             var first = (int)CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek;
             for (int i = 0; i < 7; i++)
             {
                 var name = CultureInfo.CurrentCulture.DateTimeFormat.ShortestDayNames[(first + i) % 7];
-                _grid.Children.Add(new TextBlock { Text = name[..1], FontSize = 8.5, Foreground = Ui.Res("Text3Brush"), HorizontalAlignment = HorizontalAlignment.Center });
+                _grid.Children.Add(new TextBlock { Text = name[..1], FontSize = _cell - 0.5, Foreground = Ui.Res("Text3Brush"), HorizontalAlignment = HorizontalAlignment.Center });
             }
             var start = new DateTime(today.Year, today.Month, 1);
             int offset = ((int)start.DayOfWeek - first + 7) % 7;
             for (int i = 0; i < offset; i++) _grid.Children.Add(new TextBlock());
             for (int d = 1; d <= DateTime.DaysInMonth(today.Year, today.Month); d++)
             {
-                var t = new TextBlock { Text = d.ToString(), FontSize = 9, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                var t = new TextBlock { Text = d.ToString(), FontSize = _cell, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
                 if (d == today.Day)
                 {
                     t.Foreground = Brushes.Black; t.FontWeight = FontWeights.Bold;
-                    var b = new Border { Width = 15, Height = 15, CornerRadius = new CornerRadius(7.5), Child = t };
+                    var b = new Border { Width = _cell * 1.7, Height = _cell * 1.7, CornerRadius = new CornerRadius(_cell * 0.85), Child = t };
                     b.SetResourceReference(BackgroundProperty, "AccentBrush");
                     _grid.Children.Add(b);
                 }
@@ -667,10 +921,18 @@ namespace Crest.Views
     public sealed class TogglesWidget : Widget
     {
         readonly ToggleButton _mute = new ToggleButton(), _mic = new ToggleButton();
+        readonly UniformGrid _g = new UniformGrid { Columns = 2, Rows = 2 };
+        public override void Resize(int w, int h)
+        {
+            // 1×1: 2×2 tiles · 2×1 and wider: one row of four · tall: 2×2 bigger tiles
+            if (h == 1 && w >= 2) { _g.Columns = 4; _g.Rows = 1; }
+            else { _g.Columns = 2; _g.Rows = 2; }
+            foreach (ButtonBase b in _g.Children) ((TextBlock)b.Content).FontSize = h >= 2 ? 20 : 15;
+        }
         public TogglesWidget() : base(2000)
         {
             Padding = new Thickness(8);
-            var g = new UniformGrid { Columns = 2, Rows = 2 };
+            var g = _g;
             Tile(g, _mute, "", "Mute speakers", () => AudioService.Instance.Muted = _mute.IsChecked == true);
             Tile(g, _mic, "", "Mute microphone", () => AudioService.Instance.MicMuted = _mic.IsChecked == true);
             var snip = new Button(); Tile(g, snip, "", "Screenshot", () => { NotchWindow.Instance?.Collapse(); Ui.Later(350, () => Ui.Open("ms-screenclip:")); });
@@ -724,6 +986,8 @@ namespace Crest.Views
     public sealed class NoteWidget : Widget
     {
         readonly TextBlock _text = new TextBlock { FontSize = 11.5, TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis };
+        int _lines = 4;
+        public override void Resize(int w, int h) { _lines = h >= 2 ? 11 : 4; _text.FontSize = w >= 2 ? 12.5 : 11.5; }
         public NoteWidget() : base(5000)
         {
             var head = Label("NOTES", 10, "Text3Brush", FontWeights.SemiBold);
@@ -738,7 +1002,7 @@ namespace Crest.Views
         protected override void Tick()
         {
             var d = NotesStore.Data;
-            var todos = d.Todos.Where(t => !t.Done).Take(4).Select(t => "○ " + t.Text).ToList();
+            var todos = d.Todos.Where(t => !t.Done).Take(_lines).Select(t => "○ " + t.Text).ToList();
             var text = d.Text.Trim();
             _text.Text = todos.Count > 0 ? string.Join("\n", todos) : text.Length > 0 ? text : "Nothing yet. Click to write.";
             _text.Foreground = Ui.Res(todos.Count > 0 || text.Length > 0 ? "TextBrush" : "Text3Brush");

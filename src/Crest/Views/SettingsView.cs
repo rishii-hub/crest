@@ -92,8 +92,7 @@ namespace Crest.Views
             }
             if (On("Island"))
             {
-                WidgetsSection(_left);
-                IslandPagesSection(_left);
+                PagesEditor(_left);
                 BehaviourSection(_right);
                 LiveSection(_right);
             }
@@ -120,73 +119,175 @@ namespace Crest.Views
             SliderRow(look, "Horizontal offset", "Line the notch up with your webcam", -400, 400, S.NotchOffset, v => S.NotchOffset = (int)v, v => v == 0 ? "Centre" : $"{v:+0;-0} px");
         }
 
-        /// <summary>Pick the widgets on the island's Now page, in order, within the space it has.</summary>
-        void WidgetsSection(StackPanel col)
+        /// <summary>Island pages and their widgets: add pages, rename, reorder, switch off; resize and move every widget.</summary>
+        void PagesEditor(StackPanel col)
         {
-            var sec = Section(col, "Now page widgets");
+            var sec = Section(col, "Island pages & widgets");
             var body = new StackPanel();
             sec.Children.Add(body);
-            void Save(List<string> list) { S.NowWidgets = list; Changed(true); Render(); }
+
+            void Commit() { SettingsStore.Update(_ => { }); Render(); }
+
+            Button MiniButton(string glyph, string tip, bool enabled, Action act)
+            {
+                var b = new Button { Style = Ui.StyleRes("IconButton"), Content = glyph, Width = 26, Height = 26, FontSize = 10, ToolTip = tip, IsEnabled = enabled };
+                b.Click += (s2, e2) => act();
+                return b;
+            }
+
             void Render()
             {
                 body.Children.Clear();
-                var active = WidgetCatalog.Active();
-                var keys = active.Select(d => d.Key).ToList();
-                int used = active.Sum(d => d.Units);
-                body.Children.Add(new TextBlock { Text = $"{used} of {WidgetCatalog.MaxUnits} spaces used · music and lyrics take two. The island grows or shrinks to fit.", Style = Ui.StyleRes("Caption"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 8) });
-
-                // preview strip, to scale
-                var strip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
-                foreach (var d in active)
-                    strip.Children.Add(new Border
-                    {
-                        Width = d.Units * 52 + (d.Units - 1) * 4, Height = 34, CornerRadius = new CornerRadius(8), Margin = new Thickness(0, 0, 4, 0), Background = Ui.Res("Card2Brush"),
-                        Child = new TextBlock { Text = d.Glyph, Style = Ui.StyleRes("Icon"), FontSize = 13, Foreground = Ui.Res("Text2Brush") }, ToolTip = d.Name
-                    });
-                body.Children.Add(new Border { Background = Brushes.Black, CornerRadius = new CornerRadius(12), Padding = new Thickness(6, 6, 2, 6), HorizontalAlignment = HorizontalAlignment.Left, Child = strip, Margin = new Thickness(0, 0, 0, 10) });
-
-                for (int i = 0; i < active.Count; i++)
+                body.Children.Add(new TextBlock
                 {
-                    var d = active[i];
-                    int idx = i;
-                    var row = new DockPanel { Margin = new Thickness(0, 2, 0, 2) };
-                    var btns = new StackPanel { Orientation = Orientation.Horizontal };
-                    Button Mini(string glyph, string tip, bool enabled, Action act)
+                    Text = "Make as many pages as you like. Each is a 4 × 2 grid: size any widget from 1 × 1 up to 4 × 2 and the island fits itself around them. You can also right-click a widget on the island.",
+                    Style = Ui.StyleRes("Caption"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 10)
+                });
+
+                var order = S.IslandPages.Where(k => NotchWindow.IsIslandPage(k)).Distinct().ToList();
+                var all = order.Concat(S.WidgetPages.Select(p => p.Id).Where(id => !order.Contains(id)))
+                               .Concat(NotchWindow.IslandTabs.Select(t => t.Key).Where(k => !order.Contains(k))).ToList();
+
+                foreach (var key in all)
+                {
+                    var page = WidgetCatalog.Page(key);
+                    var builtin = NotchWindow.IslandTabs.FirstOrDefault(t => t.Key == key);
+                    bool on = order.Contains(key);
+                    int pos = order.IndexOf(key);
+
+                    var card = new Border { Background = Ui.Res("Card2Brush"), CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 8, 8, 8), Margin = new Thickness(0, 0, 0, 8), Opacity = on ? 1 : 0.6 };
+                    var stack = new StackPanel();
+                    card.Child = stack;
+
+                    // header: icon · name · reorder · on/off · delete
+                    var head = new DockPanel();
+                    var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                    right.Children.Add(MiniButton(Glyphs.Left, "Earlier on the island", on && pos > 0, () => { var l = order.ToList(); (l[pos - 1], l[pos]) = (l[pos], l[pos - 1]); S.IslandPages = l; Commit(); }));
+                    right.Children.Add(MiniButton(Glyphs.Right, "Later on the island", on && pos < order.Count - 1, () => { var l = order.ToList(); (l[pos + 1], l[pos]) = (l[pos], l[pos + 1]); S.IslandPages = l; Commit(); }));
+                    var sw = new CheckBox { Style = Ui.StyleRes("Switch"), IsChecked = on, Margin = new Thickness(6, 0, 2, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = "Show on the island" };
+                    sw.Click += (s2, e2) =>
                     {
-                        var b = new Button { Style = Ui.StyleRes("IconButton"), Content = glyph, Width = 26, Height = 26, FontSize = 10, ToolTip = tip, IsEnabled = enabled };
-                        b.Click += (s2, e2) => act();
-                        btns.Children.Add(b);
-                        return b;
+                        if (sw.IsChecked == true) S.IslandPages = order.Append(key).ToList();
+                        else if (order.Count > 1) S.IslandPages = order.Where(k => k != key).ToList();
+                        Commit();
+                    };
+                    right.Children.Add(sw);
+                    if (page != null)
+                        right.Children.Add(MiniButton(Glyphs.Delete, "Delete this page", S.WidgetPages.Count > 1 || order.Count > 1, () =>
+                        {
+                            S.WidgetPages.Remove(page);
+                            S.IslandPages = order.Where(k => k != key).ToList();
+                            if (S.IslandPages.Count == 0) S.IslandPages.Add(NotchWindow.IslandTabs[0].Key);
+                            Commit();
+                        }));
+                    DockPanel.SetDock(right, Dock.Right);
+                    head.Children.Add(right);
+
+                    if (page != null)
+                    {
+                        var icon = new Button { Style = Ui.StyleRes("IconButton"), Content = page.Glyph, Width = 28, Height = 28, FontSize = 13, ToolTip = "Change the icon", Margin = new Thickness(0, 0, 6, 0) };
+                        icon.SetResourceReference(ForegroundProperty, "AccentBrush");
+                        icon.Click += (s2, e2) =>
+                        {
+                            var m = new ContextMenu();
+                            foreach (var g in WidgetCatalog.PageGlyphs)
+                            {
+                                var gg = g;
+                                var it = new MenuItem { Header = new TextBlock { Text = g, Style = Ui.StyleRes("Icon"), FontSize = 14 } };
+                                it.Click += (s3, e3) => { page.Glyph = gg; Commit(); };
+                                m.Items.Add(it);
+                            }
+                            m.PlacementTarget = icon; m.IsOpen = true;
+                        };
+                        DockPanel.SetDock(icon, Dock.Left);
+                        head.Children.Add(icon);
+                        var name = new TextBox { Style = Ui.StyleRes("Field"), Text = page.Name, Padding = new Thickness(8, 3, 8, 3), FontSize = 13, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+                        name.LostKeyboardFocus += (s2, e2) => { var n = name.Text.Trim(); if (n.Length > 0 && n != page.Name) { page.Name = n; SettingsStore.Update(_ => { }); } };
+                        name.KeyDown += (s2, e2) => { if (e2.Key == System.Windows.Input.Key.Enter) System.Windows.Input.Keyboard.ClearFocus(); };
+                        head.Children.Add(name);
                     }
-                    Mini(Glyphs.Left, "Move left", idx > 0, () => { var l = keys.ToList(); (l[idx - 1], l[idx]) = (l[idx], l[idx - 1]); Save(l); });
-                    Mini(Glyphs.Right, "Move right", idx < keys.Count - 1, () => { var l = keys.ToList(); (l[idx + 1], l[idx]) = (l[idx], l[idx + 1]); Save(l); });
-                    Mini(Glyphs.Close, "Remove", keys.Count > 1, () => { var l = keys.ToList(); l.RemoveAt(idx); Save(l); });
-                    DockPanel.SetDock(btns, Dock.Right);
-                    row.Children.Add(btns);
-                    var g = new TextBlock { Text = d.Glyph, Style = Ui.StyleRes("Icon"), FontSize = 13, Width = 24, VerticalAlignment = VerticalAlignment.Center };
-                    g.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
-                    DockPanel.SetDock(g, Dock.Left);
-                    row.Children.Add(g);
-                    row.Children.Add(Labels(d.Name + (d.Units > 1 ? "  ·  2 spaces" : ""), d.Sub));
-                    body.Children.Add(row);
+                    else
+                    {
+                        var g = new TextBlock { Text = builtin.Glyph, Style = Ui.StyleRes("Icon"), FontSize = 13, Width = 28, VerticalAlignment = VerticalAlignment.Center, Foreground = Ui.Res("Text2Brush") };
+                        DockPanel.SetDock(g, Dock.Left);
+                        head.Children.Add(g);
+                        head.Children.Add(Labels(builtin.Title, builtin.Sub));
+                    }
+                    stack.Children.Add(head);
+
+                    if (page != null)
+                    {
+                        // to-scale preview of the page
+                        const double u = 30, gap = 4;
+                        var packed = WidgetCatalog.Pack(page);
+                        var preview = new Canvas { Width = WidgetCatalog.Cols * u + (WidgetCatalog.Cols - 1) * gap, Height = WidgetCatalog.Rows * u + gap };
+                        for (int r = 0; r < WidgetCatalog.Rows; r++)
+                            for (int c = 0; c < WidgetCatalog.Cols; c++)
+                            {
+                                var cell = new Border { Width = u, Height = u, CornerRadius = new CornerRadius(6), BorderBrush = Ui.Res("StrokeBrush"), BorderThickness = new Thickness(1) };
+                                Canvas.SetLeft(cell, c * (u + gap)); Canvas.SetTop(cell, r * (u + gap));
+                                preview.Children.Add(cell);
+                            }
+                        foreach (var (slot, c, r) in packed)
+                        {
+                            if (c < 0) continue;
+                            var d = WidgetCatalog.Get(slot.Kind);
+                            int w = Math.Clamp(slot.W, 1, 4), h = Math.Clamp(slot.H, 1, 2);
+                            var block = new Border
+                            {
+                                Width = w * u + (w - 1) * gap, Height = h * u + (h - 1) * gap, CornerRadius = new CornerRadius(6), Background = Ui.Res("HoverBrush"),
+                                Child = new TextBlock { Text = d?.Glyph ?? "?", Style = Ui.StyleRes("Icon"), FontSize = 11 }, ToolTip = $"{d?.Name} · {w} × {h}"
+                            };
+                            Canvas.SetLeft(block, c * (u + gap)); Canvas.SetTop(block, r * (u + gap));
+                            preview.Children.Add(block);
+                        }
+                        stack.Children.Add(new Border { Background = Brushes.Black, CornerRadius = new CornerRadius(10), Padding = new Thickness(6), Margin = new Thickness(0, 8, 0, 6), HorizontalAlignment = HorizontalAlignment.Left, Child = preview });
+
+                        foreach (var (slot, c, r) in packed)
+                        {
+                            var d = WidgetCatalog.Get(slot.Kind);
+                            var row = new DockPanel { Margin = new Thickness(0, 1, 0, 1) };
+                            var btns = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                            var sizeBtn = new Button { Style = Ui.StyleRes("Pill"), Content = $"{slot.W} × {slot.H}  ▾", Padding = new Thickness(9, 2, 9, 2), FontSize = 11.5, ToolTip = "Size" };
+                            var sl = slot;
+                            sizeBtn.Click += (s2, e2) =>
+                            {
+                                var m = new ContextMenu();
+                                foreach (var (w, h) in WidgetCatalog.Sizes)
+                                {
+                                    var it = new MenuItem { Header = $"{w} × {h}", IsCheckable = true, IsChecked = sl.W == w && sl.H == h };
+                                    it.Click += (s3, e3) => { sl.W = w; sl.H = h; Commit(); };
+                                    m.Items.Add(it);
+                                }
+                                m.PlacementTarget = sizeBtn; m.IsOpen = true;
+                            };
+                            btns.Children.Add(sizeBtn);
+                            var more = MiniButton("\uE712", "Move, reorder or remove", true, () => { });
+                            more.Click += (s2, e2) => { var m = WidgetCatalog.Menu(page, sl, Render); m.PlacementTarget = more; m.IsOpen = true; };
+                            btns.Children.Add(more);
+                            DockPanel.SetDock(btns, Dock.Right);
+                            row.Children.Add(btns);
+                            var g = new TextBlock { Text = d?.Glyph ?? "?", Style = Ui.StyleRes("Icon"), FontSize = 12.5, Width = 24, VerticalAlignment = VerticalAlignment.Center };
+                            g.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
+                            DockPanel.SetDock(g, Dock.Left);
+                            row.Children.Add(g);
+                            row.Children.Add(Labels(d?.Name ?? slot.Kind, c < 0 ? "Doesn't fit on this page: make it or something else smaller, or move it" : null));
+                            stack.Children.Add(row);
+                        }
+                        var add = new Button { Style = Ui.StyleRes("Pill"), Content = "+ Add widget", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0), Padding = new Thickness(12, 4, 12, 4) };
+                        add.Click += (s2, e2) => { var m = WidgetCatalog.AddMenu(page, Render); m.PlacementTarget = add; m.IsOpen = true; };
+                        stack.Children.Add(add);
+                    }
+                    body.Children.Add(card);
                 }
 
-                var add = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
-                foreach (var d in WidgetCatalog.All.Where(w => !keys.Contains(w.Key)))
-                {
-                    bool fits = used + d.Units <= WidgetCatalog.MaxUnits;
-                    var b = new Button { Style = Ui.StyleRes("Pill"), Content = "+ " + d.Name, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(10, 4, 10, 4), FontSize = 12, IsEnabled = fits,
-                                         ToolTip = fits ? d.Sub : $"Needs {d.Units} space{(d.Units > 1 ? "s" : "")}: remove something first" };
-                    var key = d.Key;
-                    b.Click += (s2, e2) => { var l = keys.ToList(); l.Add(key); Save(l); };
-                    add.Children.Add(b);
-                }
-                body.Children.Add(new TextBlock { Text = "ADD A WIDGET", FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = Ui.Res("Text3Brush"), Margin = new Thickness(0, 10, 0, 0) });
-                body.Children.Add(add);
+                var newPage = new Button { Style = Ui.StyleRes("Pill"), Content = "+ New widget page", HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 5, 12, 5) };
+                newPage.Click += (s2, e2) => { var p = WidgetCatalog.NewPage(); p.Widgets.Add(new WidgetSlot { Kind = "Clock" }); Commit(); };
+                body.Children.Add(newPage);
 
-                if (keys.Contains("Countdown"))
+                if (S.WidgetPages.Any(p => p.Widgets.Any(w => w.Kind == "Countdown")))
                 {
-                    var cd = new DockPanel { Margin = new Thickness(0, 8, 0, 4) };
+                    var cd = new DockPanel { Margin = new Thickness(0, 12, 0, 4) };
                     var date = new TextBox { Style = Ui.StyleRes("Field"), Text = S.CountdownDate, Tag = "yyyy-mm-dd", Width = 110, Padding = new Thickness(8, 4, 8, 4), FontSize = 12, Margin = new Thickness(6, 0, 0, 0) };
                     var label = new TextBox { Style = Ui.StyleRes("Field"), Text = S.CountdownLabel, Tag = "Countdown to… (e.g. Exams)", Padding = new Thickness(8, 4, 8, 4), FontSize = 12 };
                     void commit()
@@ -194,34 +295,18 @@ namespace Crest.Views
                         S.CountdownLabel = label.Text.Trim();
                         if (date.Text.Trim().Length == 0 || DateTime.TryParseExact(date.Text.Trim(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
                             S.CountdownDate = date.Text.Trim();
-                        Changed(true);
+                        SettingsStore.Update(_ => { });
                     }
                     date.LostKeyboardFocus += (s2, e2) => commit();
                     label.LostKeyboardFocus += (s2, e2) => commit();
                     DockPanel.SetDock(date, Dock.Right);
                     cd.Children.Add(date);
                     cd.Children.Add(label);
+                    body.Children.Add(new TextBlock { Text = "COUNTDOWN WIDGET", FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = Ui.Res("Text3Brush"), Margin = new Thickness(0, 12, 0, 0) });
                     body.Children.Add(cd);
                 }
             }
             Render();
-        }
-
-        void IslandPagesSection(StackPanel col)
-        {
-            var pages = Section(col, "Island pages");
-            pages.Children.Add(new TextBlock { Text = "The island stays small and only shows these. Everything else lives here in the Crest app.", Style = Ui.StyleRes("Caption"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 4) });
-            foreach (var (key, glyph, title, sub) in NotchWindow.IslandTabs)
-            {
-                var k = key;
-                Toggle(pages, title, sub, key == "Home" || S.IslandPages.Contains(key), on =>
-                {
-                    if (on && !S.IslandPages.Contains(k)) S.IslandPages.Add(k);
-                    else if (!on) S.IslandPages.Remove(k);
-                    if (!S.IslandPages.Contains("Home")) S.IslandPages.Insert(0, "Home");
-                    S.IslandPages = NotchWindow.IslandTabs.Select(t => t.Key).Where(S.IslandPages.Contains).ToList();
-                });
-            }
         }
 
         void BehaviourSection(StackPanel col)

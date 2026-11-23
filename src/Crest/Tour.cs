@@ -64,28 +64,52 @@ namespace Crest
                     await Task.Delay(1300);
                     Capture("island-" + key.ToLowerInvariant());
                 }
-                // Now-page widget combinations
-                SelectTab("Home");
-                foreach (var set in new[]
+                // Widget pages: different sizes, a second page, a two-row page
+                var home = Views.WidgetCatalog.Page("Home")!;
+                var original = home.Widgets.ToList();
+                var layouts = new (string Name, (string Kind, int W, int H)[] Slots)[]
                 {
-                    new[] { "Clock", "Weather", "Battery", "System" },
-                    new[] { "Calendar", "Timer", "Toggles", "Note" },
-                    new[] { "Countdown", "ScreenTime", "Glance" },
-                    new[] { "Music", "Lyrics" },
-                })
+                    ("clock-weather-battery-system", new[] { ("Clock", 1, 1), ("Weather", 1, 1), ("Battery", 1, 1), ("System", 1, 1) }),
+                    ("calendar-timer-toggles-note", new[] { ("Calendar", 1, 1), ("Timer", 1, 1), ("Toggles", 1, 1), ("Note", 1, 1) }),
+                    ("music-lyrics", new[] { ("Music", 2, 1), ("Lyrics", 2, 1) }),
+                    ("wide-weather-calendar", new[] { ("Weather", 3, 1), ("Calendar", 1, 1) }),
+                    ("music-small-clock-wide", new[] { ("Music", 1, 1), ("Clock", 2, 1), ("Toggles", 1, 1) }),
+                    ("two-rows", new[] { ("Music", 2, 2), ("Weather", 2, 1), ("Calendar", 1, 1), ("Lyrics", 1, 1) }),
+                    ("big-clock", new[] { ("Clock", 2, 2), ("Note", 1, 2), ("System", 1, 2) }),
+                };
+                foreach (var (name, slots) in layouts)
                 {
-                    SettingsStore.Update(x => { x.NowWidgets = set.ToList(); x.CountdownLabel = "Exams"; x.CountdownDate = DateTime.Today.AddDays(23).ToString("yyyy-MM-dd"); x.Lyrics = set.Contains("Lyrics"); });
-                    if (set.Contains("Lyrics"))
+                    SettingsStore.Update(x =>
+                    {
+                        home.Widgets = slots.Select(t => new WidgetSlot { Kind = t.Kind, W = t.W, H = t.H }).ToList();
+                        x.CountdownLabel = "Exams"; x.CountdownDate = DateTime.Today.AddDays(23).ToString("yyyy-MM-dd");
+                        x.Lyrics = slots.Any(t => t.Kind == "Lyrics");
+                    });
+                    if (slots.Any(t => t.Kind == "Lyrics"))
                         LyricsService.Demo(new List<LyricsService.Line>
                         {
                             new(TimeSpan.Zero, "Neon on the window, rain on the glass"),
                             new(TimeSpan.FromSeconds(4), "Every little island lights up as we pass"),
                             new(TimeSpan.FromSeconds(8), "Hold the moment, let the city hum"),
                         }, 1);
+                    SelectTab("Home");
                     await Task.Delay(1500);
-                    Capture("widgets-" + string.Join("-", set).ToLowerInvariant());
+                    Capture("widgets-" + name);
                 }
-                SettingsStore.Update(x => { x.NowWidgets = new List<string> { "Music", "Glance" }; x.Lyrics = false; });
+                // a page of your own, next to the Now page
+                SettingsStore.Update(x =>
+                {
+                    home.Widgets = original;
+                    x.Lyrics = false;
+                    var focus = Views.WidgetCatalog.NewPage("Focus");
+                    focus.Widgets.Add(new WidgetSlot { Kind = "Timer", W = 1 });
+                    focus.Widgets.Add(new WidgetSlot { Kind = "Note", W = 2 });
+                    focus.Widgets.Add(new WidgetSlot { Kind = "ScreenTime", W = 1 });
+                });
+                await Task.Delay(500);
+                SelectTab(Tabs.Last(t => t.Title == "Focus").Key);
+                await Task.Delay(1400);
+                Capture("widgets-own-page");
 
                 // Lyrics lookup against lrclib.net (logs only the count, never the words)
                 try

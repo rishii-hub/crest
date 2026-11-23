@@ -21,7 +21,9 @@ namespace Crest.Core
         public double? FloatLeft { get; set; }
         public double? FloatTop { get; set; }
         public List<string> HiddenTabs { get; set; } = new List<string> { "Message" };   // legacy
-        public List<string> NowWidgets { get; set; } = new List<string> { "Music", "Glance" };
+        public List<string> NowWidgets { get; set; } = new List<string> { "Music", "Glance" };   // legacy (1.7), migrated into WidgetPages
+        /// <summary>Your widget pages on the island. Each has its own widgets, each widget its own size.</summary>
+        public List<IslandPageDef> WidgetPages { get; set; } = new List<IslandPageDef>();
         public string CountdownLabel { get; set; } = "";
         public string CountdownDate { get; set; } = "";   // yyyy-MM-dd
         public bool Lyrics { get; set; } = false;           // sends title + artist to lrclib.net, so opt-in
@@ -128,6 +130,22 @@ namespace Crest.Core
         public bool AutoUpdateCheck { get; set; } = true;
         public DateTime? LastUpdateCheck { get; set; }
         public string NotifiedVersion { get; set; } = "";
+    }
+
+    public sealed class IslandPageDef
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
+        public string Name { get; set; } = "Widgets";
+        public string Glyph { get; set; } = "\uE80F";
+        public List<WidgetSlot> Widgets { get; set; } = new List<WidgetSlot>();
+    }
+
+    public sealed class WidgetSlot
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
+        public string Kind { get; set; } = "Clock";
+        public int W { get; set; } = 1;   // 1–4 columns
+        public int H { get; set; } = 1;   // 1–2 rows
     }
 
     public sealed class AlarmItem

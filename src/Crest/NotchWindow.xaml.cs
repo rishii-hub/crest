@@ -71,7 +71,6 @@ namespace Crest
         /// <summary>The few compact pages the island itself shows. Everything else opens in the Crest app window.</summary>
         public static readonly (string Key, string Glyph, string Title, string Sub)[] IslandTabs =
         {
-            ("Home", Glyphs.Home, "Now", "Music, time, weather and battery at a glance"),
             ("Shelf", Glyphs.Folder, "Shelf", "Drop files on the island, drag them out later"),
             ("Timers", Glyphs.Stopwatch, "Timers", "Quick timers and Pomodoro"),
             ("Clipboard", Glyphs.Clipboard, "Clipboard", "Your latest copies, one click to copy again"),
@@ -81,10 +80,34 @@ namespace Crest
         /// <summary>Island pages without a switcher button (opened by hotkey).</summary>
         static readonly HashSet<string> NonDock = new HashSet<string> { "Search" };
 
-        static IEnumerable<(string Key, string Glyph, string Title, string Sub)> Tabs =>
-            IslandTabs.Where(t => t.Key == "Home" || S.IslandPages.Contains(t.Key));
+        /// <summary>The island's pages in your order: your widget pages and the built-in ones you switched on.</summary>
+        public static List<(string Key, string Glyph, string Title, string Sub)> Tabs
+        {
+            get
+            {
+                var list = new List<(string, string, string, string)>();
+                foreach (var k in S.IslandPages.Distinct())
+                {
+                    if (WidgetCatalog.Page(k) is IslandPageDef p) list.Add((p.Id, p.Glyph, p.Name, "Widgets"));
+                    else
+                    {
+                        var t = IslandTabs.FirstOrDefault(x => x.Key == k);
+                        if (t.Key != null) list.Add(t);
+                    }
+                }
+                if (list.Count == 0)
+                {
+                    var p = S.WidgetPages.FirstOrDefault();
+                    list.Add(p != null ? (p.Id, p.Glyph, p.Name, "Widgets") : IslandTabs[0]);
+                }
+                return list;
+            }
+        }
 
-        public static bool IsIslandPage(string key) => NonDock.Contains(key) || IslandTabs.Any(t => t.Key == key);
+        public static bool IsIslandPage(string key) => NonDock.Contains(key) || IslandTabs.Any(t => t.Key == key) || WidgetCatalog.Page(key) != null;
+
+        /// <summary>"Home" means the first page of the island, whatever you've called or arranged it.</summary>
+        static string Resolve(string key) => key == "Home" && WidgetCatalog.Page("Home") == null ? Tabs[0].Key : key;
 
         IntPtr _hwnd, _monitor, _prevFg, _lastFg;
         HwndSource? _source;
@@ -131,13 +154,15 @@ namespace Crest
             "Timers" => new Size(460, 176),
             "Clipboard" => new Size(460, 232),
             "Search" => new Size(560, 296),
-            _ => new Size(Math.Max(300, WidgetCatalog.BoardWidth() + 24), 184),
+            _ when WidgetCatalog.Page(tab) is IslandPageDef p => new Size(Math.Max(300, WidgetCatalog.PageSize(p).Width + 24), WidgetCatalog.PageSize(p).Height + 50),
+            _ => new Size(500, 184),
         };
         Size ExpandedBody => new Size(Math.Round(PageBase(_tab).Width * KE), Math.Round(PageBase(_tab).Height * KE));
         double ExpandedRadius => (Island ? 26 : 22) * KE;
         Size CollapsedWindow => new Size(Math.Round(400 * K) + 2 * Shoulder + 40 + 2 * (RowH + 18), Math.Round(56 * K) + Math.Max(TopGap, 5) + 14);
         // generous margins so the soft shadow is never cut off by the window edge
-        Size ExpandedWindow => new Size(Math.Round((WidgetCatalog.Width(WidgetCatalog.MaxUnits) + 24) * KE) + 2 * Shoulder + 110, Math.Round(296 * KE) + TopGap + 70);
+        Size ExpandedWindow => new Size(Math.Round((WidgetCatalog.Width(WidgetCatalog.Cols) + 24) * KE) + 2 * Shoulder + 110,
+                                        Math.Round((WidgetCatalog.Height(WidgetCatalog.Rows) + 50) * KE) + TopGap + 70);
 
         public bool IsExpanded => _expanded;
         public bool UserHidden => _userHidden;
@@ -148,6 +173,7 @@ namespace Crest
         {
             InitializeComponent();
             Instance = this;
+            WidgetCatalog.EnsurePages();
             _bars = new[] { Bar0, Bar1, Bar2, Bar3 };
 
             _toastTimer = new DispatcherTimer();
@@ -226,7 +252,7 @@ namespace Crest
             Win32.SetWindowLongPtr(_hwnd, Win32.GWL_EXSTYLE, new IntPtr(ex));
 
             RegisterHotkeys();
-            _tab = IsIslandPage(S.LastTab) ? S.LastTab : "Home";
+            _tab = IsIslandPage(S.LastTab) ? S.LastTab : Resolve("Home");
             ApplySettings();
             StartServices();
             _envTimer.Start();
@@ -501,6 +527,7 @@ namespace Crest
 
         public void Expand(string? tab)
         {
+            if (tab != null) tab = Resolve(tab);
             if (tab != null && !IsIslandPage(tab)) { AppWindow.ShowPage(tab); return; }
             if (_hwnd == IntPtr.Zero) return;
             if (_userHidden) SetUserHidden(false);
@@ -589,13 +616,18 @@ namespace Crest
             el.BeginAnimation(OpacityProperty, new DoubleAnimation(to, TimeSpan.FromMilliseconds(ms)) { BeginTime = TimeSpan.FromMilliseconds(delay) });
 
         // ================= tabs =================
+        string _tabSig = "";
+
         void BuildTabs()
         {
-            var keys = Tabs.Select(t => t.Key).ToList();
-            if (keys.SequenceEqual(_tabButtons.Keys) && TabBar.Children.Count == keys.Count) return;
+            var tabs = Tabs;
+            var keys = tabs.Select(t => t.Key).ToList();
+            var sig = string.Join("|", tabs.Select(t => t.Key + t.Glyph + t.Title));
+            if (sig == _tabSig && TabBar.Children.Count == keys.Count) return;
+            _tabSig = sig;
             TabBar.Children.Clear();
             _tabButtons.Clear();
-            foreach (var (key, glyph, title, _) in Tabs)
+            foreach (var (key, glyph, title, _) in tabs)
             {
                 var rb = new RadioButton { Style = Ui.StyleRes("TabButton"), Content = glyph, GroupName = "notch-tabs", ToolTip = title, Width = 26, Height = 26, FontSize = 12.5, Margin = new Thickness(0, 0, 2, 0) };
                 var k = key;
@@ -603,15 +635,21 @@ namespace Crest
                 _tabButtons[key] = rb;
                 TabBar.Children.Add(rb);
             }
-            if (!_tabButtons.ContainsKey(_tab)) _tab = "Home";
+            if (!_tabButtons.ContainsKey(_tab) && !NonDock.Contains(_tab))
+            {
+                // the page you were on was removed
+                _tab = keys[0];
+                if (TabHost.Content != null) { TabHost.Content = null; Dispatcher.BeginInvoke(new Action(() => SelectTab(_tab))); }
+            }
             _selecting = true;
-            _tabButtons[_tab].IsChecked = true;
+            if (_tabButtons.TryGetValue(_tab, out var cur)) cur.IsChecked = true;
             _selecting = false;
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => MovePill(false)));
         }
 
         public void SelectTab(string key)
         {
+            key = Resolve(key);
             if (!IsIslandPage(key))
             {
                 // Big features live in the Crest app window, not the island.
@@ -697,12 +735,12 @@ namespace Crest
         /// <summary>Compact views for the island.</summary>
         static FrameworkElement CreateView(string key) => key switch
         {
-            "Home" => new WidgetBoard(),
             "Shelf" => new TrayView(true, compact: true),
             "Launch" => new TrayView(false, compact: true),
             "Timers" => new IslandTimers(),
             "Clipboard" => new IslandClipboard(),
-            _ => new SpotlightView(),
+            "Search" => new SpotlightView(),
+            _ => new WidgetBoard(key),
         };
 
         /// <summary>Full views for the Crest app window and floating widgets.</summary>
