@@ -26,7 +26,28 @@ namespace Crest.Services
         WF.TypedEventHandler<GSMTC.GlobalSystemMediaTransportControlsSession, GSMTC.TimelinePropertiesChangedEventArgs>? _onTimeline;
         int _propsVersion;
 
-        public bool HasSession => _session != null;
+        public bool HasSession => _session != null || _demo;
+        bool _demo;
+
+        /// <summary>Demo video: pretend a song is playing (no real player needed).</summary>
+        internal void Demo(string title, string artist, BitmapSource art, Color tint, TimeSpan duration)
+        {
+            _demo = true;
+            Title = title; Artist = artist; AppName = "Demo";
+            Art = art; ArtColor = tint;
+            CanSeek = CanNext = CanPrev = true;
+            Duration = duration;
+            _position = TimeSpan.Zero; _positionAt = DateTimeOffset.Now;
+            IsPlaying = true;
+            Changed?.Invoke();
+        }
+
+        internal void DemoEnd()
+        {
+            _demo = false;
+            Title = Artist = AppName = ""; Art = null; ArtColor = null; IsPlaying = false; Duration = TimeSpan.Zero;
+            Changed?.Invoke();
+        }
         public bool IsPlaying { get; private set; }
         public string Title { get; private set; } = "";
         public string Artist { get; private set; } = "";
@@ -73,7 +94,7 @@ namespace Crest.Services
         /// <summary>Choose the session to show: a playing one wins over the "current" one (e.g. Spotify playing while a paused YouTube tab is focused).</summary>
         void Pick()
         {
-            if (_mgr == null) return;
+            if (_mgr == null || _demo) return;
             IReadOnlyList<GSMTC.GlobalSystemMediaTransportControlsSession> sessions;
             try { sessions = _mgr.GetSessions(); } catch { return; }
 
@@ -196,7 +217,10 @@ namespace Crest.Services
             Changed?.Invoke();
         }
 
-        public async Task TogglePlayPauseAsync() { try { if (_session != null) await _session.TryTogglePlayPauseAsync(); } catch { } }
+        public async Task TogglePlayPauseAsync()
+        {
+            if (_demo) { _position = Position; _positionAt = DateTimeOffset.Now; IsPlaying = !IsPlaying; Changed?.Invoke(); return; }
+            try { if (_session != null) await _session.TryTogglePlayPauseAsync(); } catch { } }
         public async Task NextAsync() { try { if (_session != null) await _session.TrySkipNextAsync(); } catch { } }
         public async Task PreviousAsync() { try { if (_session != null) await _session.TrySkipPreviousAsync(); } catch { } }
 

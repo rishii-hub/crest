@@ -37,9 +37,12 @@ namespace Crest.Services
         static readonly object Gate = new object();
         static int _sampleRate = 48000;
 
+        /// <summary>Demo video: animated, made-up levels instead of real audio.</summary>
+        public static bool DemoMode;
+
         public static void Acquire()
         {
-            if (_users++ > 0) return;
+            if (_users++ > 0 || DemoMode) return;
             try
             {
                 _cap = new WasapiLoopbackCapture();
@@ -61,6 +64,19 @@ namespace Crest.Services
         /// <summary>Copy of the current band levels (0..1).</summary>
         public static float[] Snapshot()
         {
+            if (DemoMode)
+            {
+                double t = Environment.TickCount64 / 1000.0;
+                double beat = Math.Pow(Math.Max(0, Math.Sin(t * Math.PI * 2 * 1.9)), 6); // ~114 bpm thump
+                var b = new float[Bands];
+                for (int i = 0; i < Bands; i++)
+                {
+                    double tilt = 1 - i / (double)Bands * 0.55;
+                    double wob = 0.5 + 0.5 * Math.Sin(t * (2.3 + i * 0.37) + i * 1.7) * Math.Sin(t * (1.1 + i * 0.13));
+                    b[i] = (float)Math.Clamp((0.25 + 0.5 * wob) * tilt + beat * 0.35 * tilt, 0, 1);
+                }
+                return b;
+            }
             lock (Gate) return (float[])_bands.Clone();
         }
 

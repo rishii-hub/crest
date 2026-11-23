@@ -62,7 +62,12 @@ namespace Crest
             if (Array.IndexOf(e.Args, "--updated") >= 0)
                 Ui.Later(1200, () => notch.ShowToast(new Toast { Kind = "updated", Glyph = Glyphs.Check, GlyphBrush = Ui.Res("GreenBrush"), Title = "Crest updated", Value = "v" + UpdateService.CurrentText, Duration = TimeSpan.FromSeconds(3) }));
             int tour = Array.IndexOf(e.Args, "--tour");
-            if (tour >= 0)
+            if (Array.IndexOf(e.Args, "--demo") >= 0)
+            {
+                SettingsStore.Current.FirstRun = false;
+                Ui.Later(1500, () => notch.RunDemo());
+            }
+            else if (tour >= 0)
             {
                 var dir = tour + 1 < e.Args.Length ? e.Args[tour + 1] : "shots";
                 SettingsStore.Current.FirstRun = false;

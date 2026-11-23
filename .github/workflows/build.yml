@@ -48,6 +48,37 @@ jobs:
           if ($shots.Count -lt 15) { Write-Host "::error::expected at least 15 screenshots"; exit 1 }
           if ((Test-Path $log) -and ((Get-Content $log -Raw) -match 'fatal:|ui: |view \w+: |tour: System\.|capture \S+: ')) { Write-Host "::error::runtime errors in crest.log"; exit 1 }
 
+      - name: Demo video (on request) — scripted walkthrough recorded with ffmpeg
+        if: contains(github.event.head_commit.message, '[demo]')
+        shell: pwsh
+        run: |
+          try { Set-DisplayResolution -Width 1920 -Height 1080 -Force -ErrorAction Stop } catch { Write-Host "resolution unchanged: $_" }
+          Add-Type -AssemblyName System.Windows.Forms
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds; Write-Host "screen: $($b.Width)x$($b.Height)"
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { choco install ffmpeg -y --no-progress | Out-Null; $env:Path = "C:\ProgramData\chocolatey\bin;$env:Path" }
+          Remove-Item "$env:APPDATA\Crest" -Recurse -Force -ErrorAction SilentlyContinue
+          $ff = Start-Process ffmpeg -ArgumentList '-y','-f','gdigrab','-framerate','30','-draw_mouse','1','-t','120','-i','desktop','-c:v','libx264','-preset','veryfast','-crf','21','-pix_fmt','yuv420p','demo-raw.mp4' -PassThru -NoNewWindow -RedirectStandardError ff.log
+          Start-Sleep 2
+          $p = Start-Process "out/standalone/Crest.exe" -ArgumentList "--demo" -PassThru
+          if (-not $p.WaitForExit(170000)) { Stop-Process $p -Force; Write-Host "::warning::demo timed out" }
+          if (-not $ff.WaitForExit(60000)) { Stop-Process $ff -Force }
+          Get-Content ff.log -Tail 5
+          Get-Content "$env:APPDATA\Crest\crest.log" -ErrorAction SilentlyContinue | Select-String "demo|error|Exception"
+          if (-not (Test-Path demo-raw.mp4)) { Write-Host "::error::no video"; exit 1 }
+          Write-Host "video bytes: $((Get-Item demo-raw.mp4).Length)"
+          # publish on a separate orphan branch so the main history stays small
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          $tmp = Join-Path $env:RUNNER_TEMP "media"
+          New-Item -ItemType Directory -Force $tmp | Out-Null
+          Copy-Item demo-raw.mp4 $tmp/demo-raw.mp4
+          Push-Location $tmp
+          git init -q -b media
+          git add demo-raw.mp4
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -q -m "Demo video"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" media
+          Pop-Location
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

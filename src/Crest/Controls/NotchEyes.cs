@@ -49,7 +49,8 @@ namespace Crest.Controls
         }
 
         /// <summary>Close the eyes immediately (tour / screenshots).</summary>
-        public void ForceSleep(bool sleep) { _sleep = sleep ? 1 : 0; _lastMove = sleep ? DateTime.Now.AddHours(-1) : DateTime.Now; InvalidateVisual(); }
+        public void ForceSleep(bool sleep) { _forced = sleep; _lastMove = sleep ? DateTime.Now.AddHours(-1) : DateTime.Now; InvalidateVisual(); }
+        bool _forced;
 
         void Tick()
         {
@@ -60,7 +61,7 @@ namespace Crest.Controls
             double idleSec = (now - _lastMove).TotalSeconds;
             var li = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf<LASTINPUTINFO>() };
             if (GetLastInputInfo(ref li)) idleSec = Math.Min(idleSec, (Environment.TickCount - (int)li.dwTime) / 1000.0);
-            bool asleep = SleepWhenIdle && idleSec > 60;
+            bool asleep = _forced || (SleepWhenIdle && idleSec > 60);
 
             // Where the cursor is relative to the eyes, in device pixels.
             Point centre;

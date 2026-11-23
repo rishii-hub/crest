@@ -73,10 +73,27 @@ namespace Crest.Services
             Advance();
         }
 
+        static bool _demoMode;
+
+        /// <summary>Demo video: timed, made-up lines that follow the demo song's position.</summary>
+        internal static void DemoSong(IReadOnlyList<Line> lines)
+        {
+            _demoMode = true;
+            Status = "synced"; Lines = lines; Plain = null; Index = -1;
+            Changed?.Invoke();
+            Sync();
+        }
+
         static void Sync()
         {
             var md = MediaService.Instance;
             if (!S.Lyrics) { _key = ""; if (Status != "off") Set("off"); Timer.Stop(); return; }
+            if (_demoMode)
+            {
+                if (md.IsPlaying && HasSynced) { if (!Timer.IsEnabled) Timer.Start(); } else Timer.Stop();
+                Advance();
+                return;
+            }
             if (!md.HasSession || string.IsNullOrWhiteSpace(md.Title)) { _key = ""; if (Status != "idle") Set("idle"); Timer.Stop(); return; }
             var key = md.Artist + "\u0001" + md.Title;
             if (key != _key)
