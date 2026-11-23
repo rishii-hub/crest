@@ -360,7 +360,11 @@ namespace Crest.Views
             backup.Children.Add(brow);
 
             var reset = Section(_left, "Reset");
-            Info(reset, "Start fresh", "Theme, island, widgets, live activities and behaviour go back to default. Your notes, clipboard, shelf, alarms, scripts, weather city and assistant setup stay.");
+            reset.Children.Add(new TextBlock
+            {
+                Text = "Theme, island, widgets, live activities and behaviour go back to default. Your notes, clipboard, shelf, alarms, scripts, weather city and assistant setup stay. Click a button twice to confirm.",
+                Style = Ui.StyleRes("Caption"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 2)
+            });
             var rrow = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
             var all = ConfirmButton("Reset all settings", "Click again to reset everything", () => { SettingsStore.ResetAll(); AppWindow.Current?.Reload(); });
             rrow.Children.Add(all);
