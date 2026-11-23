@@ -64,6 +64,8 @@ namespace Crest.Controls
 
         /// <summary>An element (the backdrop) that should be clipped to exactly this silhouette.</summary>
         public UIElement? ClipTarget { get; set; }
+        /// <summary>A second element clipped to the silhouette (the open panel's content).</summary>
+        public UIElement? ClipTarget2 { get; set; }
 
         static readonly Brush LensFill = Freeze(new RadialGradientBrush(Color.FromRgb(0x1C, 0x1F, 0x2E), Color.FromRgb(0x05, 0x05, 0x07)));
         static readonly Pen LensRing = new Pen(Freeze(new SolidColorBrush(Color.FromRgb(0x16, 0x16, 0x1C))), 1.2);
@@ -107,6 +109,7 @@ namespace Crest.Controls
             }
             g.Freeze();
             if (ClipTarget != null) ClipTarget.Clip = g;
+            if (ClipTarget2 != null) ClipTarget2.Clip = g;
             dc.DrawGeometry(Fill, Stroke != null ? new Pen(Stroke, 1) : null, g);
             if (ShowLens && h > 14)
             {

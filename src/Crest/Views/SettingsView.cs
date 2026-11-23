@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Windows;
@@ -91,8 +92,9 @@ namespace Crest.Views
             }
             if (On("Island"))
             {
+                WidgetsSection(_left);
                 IslandPagesSection(_left);
-                BehaviourSection(_left);
+                BehaviourSection(_right);
                 LiveSection(_right);
             }
             if (On("General"))
@@ -116,6 +118,93 @@ namespace Crest.Views
             Toggle(look, "OLED black", "Pure #000 with no outline or shadow, so it melts into the bezel", S.Oled, v => S.Oled = v);
             Toggle(look, "Camera cutout", "Draw a lens in the notch", S.CameraCutout, v => S.CameraCutout = v);
             SliderRow(look, "Horizontal offset", "Line the notch up with your webcam", -400, 400, S.NotchOffset, v => S.NotchOffset = (int)v, v => v == 0 ? "Centre" : $"{v:+0;-0} px");
+        }
+
+        /// <summary>Pick the widgets on the island's Now page, in order, within the space it has.</summary>
+        void WidgetsSection(StackPanel col)
+        {
+            var sec = Section(col, "Now page widgets");
+            var body = new StackPanel();
+            sec.Children.Add(body);
+            void Save(List<string> list) { S.NowWidgets = list; Changed(true); Render(); }
+            void Render()
+            {
+                body.Children.Clear();
+                var active = WidgetCatalog.Active();
+                var keys = active.Select(d => d.Key).ToList();
+                int used = active.Sum(d => d.Units);
+                body.Children.Add(new TextBlock { Text = $"{used} of {WidgetCatalog.MaxUnits} spaces used · music and lyrics take two. The island grows or shrinks to fit.", Style = Ui.StyleRes("Caption"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 8) });
+
+                // preview strip, to scale
+                var strip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+                foreach (var d in active)
+                    strip.Children.Add(new Border
+                    {
+                        Width = d.Units * 52 + (d.Units - 1) * 4, Height = 34, CornerRadius = new CornerRadius(8), Margin = new Thickness(0, 0, 4, 0), Background = Ui.Res("Card2Brush"),
+                        Child = new TextBlock { Text = d.Glyph, Style = Ui.StyleRes("Icon"), FontSize = 13, Foreground = Ui.Res("Text2Brush") }, ToolTip = d.Name
+                    });
+                body.Children.Add(new Border { Background = Brushes.Black, CornerRadius = new CornerRadius(12), Padding = new Thickness(6, 6, 2, 6), HorizontalAlignment = HorizontalAlignment.Left, Child = strip, Margin = new Thickness(0, 0, 0, 10) });
+
+                for (int i = 0; i < active.Count; i++)
+                {
+                    var d = active[i];
+                    int idx = i;
+                    var row = new DockPanel { Margin = new Thickness(0, 2, 0, 2) };
+                    var btns = new StackPanel { Orientation = Orientation.Horizontal };
+                    Button Mini(string glyph, string tip, bool enabled, Action act)
+                    {
+                        var b = new Button { Style = Ui.StyleRes("IconButton"), Content = glyph, Width = 26, Height = 26, FontSize = 10, ToolTip = tip, IsEnabled = enabled };
+                        b.Click += (s2, e2) => act();
+                        btns.Children.Add(b);
+                        return b;
+                    }
+                    Mini(Glyphs.Left, "Move left", idx > 0, () => { var l = keys.ToList(); (l[idx - 1], l[idx]) = (l[idx], l[idx - 1]); Save(l); });
+                    Mini(Glyphs.Right, "Move right", idx < keys.Count - 1, () => { var l = keys.ToList(); (l[idx + 1], l[idx]) = (l[idx], l[idx + 1]); Save(l); });
+                    Mini(Glyphs.Close, "Remove", keys.Count > 1, () => { var l = keys.ToList(); l.RemoveAt(idx); Save(l); });
+                    DockPanel.SetDock(btns, Dock.Right);
+                    row.Children.Add(btns);
+                    var g = new TextBlock { Text = d.Glyph, Style = Ui.StyleRes("Icon"), FontSize = 13, Width = 24, VerticalAlignment = VerticalAlignment.Center };
+                    g.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
+                    DockPanel.SetDock(g, Dock.Left);
+                    row.Children.Add(g);
+                    row.Children.Add(Labels(d.Name + (d.Units > 1 ? "  ·  2 spaces" : ""), d.Sub));
+                    body.Children.Add(row);
+                }
+
+                var add = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
+                foreach (var d in WidgetCatalog.All.Where(w => !keys.Contains(w.Key)))
+                {
+                    bool fits = used + d.Units <= WidgetCatalog.MaxUnits;
+                    var b = new Button { Style = Ui.StyleRes("Pill"), Content = "+ " + d.Name, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(10, 4, 10, 4), FontSize = 12, IsEnabled = fits,
+                                         ToolTip = fits ? d.Sub : $"Needs {d.Units} space{(d.Units > 1 ? "s" : "")}: remove something first" };
+                    var key = d.Key;
+                    b.Click += (s2, e2) => { var l = keys.ToList(); l.Add(key); Save(l); };
+                    add.Children.Add(b);
+                }
+                body.Children.Add(new TextBlock { Text = "ADD A WIDGET", FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = Ui.Res("Text3Brush"), Margin = new Thickness(0, 10, 0, 0) });
+                body.Children.Add(add);
+
+                if (keys.Contains("Countdown"))
+                {
+                    var cd = new DockPanel { Margin = new Thickness(0, 8, 0, 4) };
+                    var date = new TextBox { Style = Ui.StyleRes("Field"), Text = S.CountdownDate, Tag = "yyyy-mm-dd", Width = 110, Padding = new Thickness(8, 4, 8, 4), FontSize = 12, Margin = new Thickness(6, 0, 0, 0) };
+                    var label = new TextBox { Style = Ui.StyleRes("Field"), Text = S.CountdownLabel, Tag = "Countdown to… (e.g. Exams)", Padding = new Thickness(8, 4, 8, 4), FontSize = 12 };
+                    void commit()
+                    {
+                        S.CountdownLabel = label.Text.Trim();
+                        if (date.Text.Trim().Length == 0 || DateTime.TryParseExact(date.Text.Trim(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
+                            S.CountdownDate = date.Text.Trim();
+                        Changed(true);
+                    }
+                    date.LostKeyboardFocus += (s2, e2) => commit();
+                    label.LostKeyboardFocus += (s2, e2) => commit();
+                    DockPanel.SetDock(date, Dock.Right);
+                    cd.Children.Add(date);
+                    cd.Children.Add(label);
+                    body.Children.Add(cd);
+                }
+            }
+            Render();
         }
 
         void IslandPagesSection(StackPanel col)
@@ -162,6 +251,8 @@ namespace Crest.Views
             Toggle(live, "Hide copied text", "Show “Text” or “Image” instead of what you copied", S.CopiedHideContent, v => S.CopiedHideContent = v);
             Toggle(live, "Focus Assist / Do Not Disturb", "Show a pill when Windows notifications go quiet", S.FocusAssistHud, v => S.FocusAssistHud = v);
             Toggle(live, "Mirror notifications & calls", NotificationMirror.HasIdentity ? "Windows notifications and calls as pills · " + NotificationMirror.Status : "Needs the packaged (MSIX) build of Crest", S.MirrorNotifications, v => { S.MirrorNotifications = v; if (v) NotificationMirror.Init(Dispatcher); else NotificationMirror.Stop(); });
+            Toggle(live, "Lyrics", "Synced lyrics for whatever is playing. Sends the song's title and artist to lrclib.net, nothing else.", S.Lyrics, v => S.Lyrics = v);
+            Toggle(live, "Lyrics in the notch", "Show the current line in the closed notch while music plays", S.LyricsInNotch, v => S.LyricsInNotch = v);
             Toggle(live, "Sounds", "Chime when timers finish", S.Sounds, v => S.Sounds = v);
         }
 

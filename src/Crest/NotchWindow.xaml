@@ -55,6 +55,11 @@
       <Grid x:Name="CollapsedLayer" VerticalAlignment="Top" TextElement.Foreground="White">
         <Grid x:Name="ActivityRow" Height="32" VerticalAlignment="Top">
 
+          <!-- current lyric line while music plays (optional) -->
+          <TextBlock x:Name="LyricLine" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"
+                     TextTrimming="CharacterEllipsis" Visibility="Collapsed" Opacity="0.95">
+            <TextBlock.RenderTransform><TranslateTransform x:Name="LyricShift"/></TextBlock.RenderTransform>
+          </TextBlock>
           <c:NotchEyes x:Name="Eyes" HorizontalAlignment="Center" VerticalAlignment="Center" Width="50" Height="16" Visibility="Collapsed"/>
 
           <!-- left slot -->
@@ -99,6 +104,8 @@
       </Grid>
 
       <!-- ===== Expanded ===== -->
+      <!-- clipped to the island's silhouette, so content is revealed by the shape as it grows and never spills past it -->
+      <Grid x:Name="ExpandedClip">
       <Grid x:Name="ExpandedLayer" HorizontalAlignment="Center" VerticalAlignment="Top" Visibility="Collapsed" Opacity="0">
         <Grid.RenderTransform>
           <TranslateTransform x:Name="ExpandedShift" Y="-10"/>
@@ -153,6 +160,7 @@
             </ContentControl.RenderTransform>
           </ContentControl>
         </Grid>
+      </Grid>
       </Grid>
     </Grid>
     </Grid>

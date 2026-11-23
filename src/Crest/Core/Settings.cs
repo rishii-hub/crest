@@ -21,6 +21,11 @@ namespace Crest.Core
         public double? FloatLeft { get; set; }
         public double? FloatTop { get; set; }
         public List<string> HiddenTabs { get; set; } = new List<string> { "Message" };   // legacy
+        public List<string> NowWidgets { get; set; } = new List<string> { "Music", "Glance" };
+        public string CountdownLabel { get; set; } = "";
+        public string CountdownDate { get; set; } = "";   // yyyy-MM-dd
+        public bool Lyrics { get; set; } = false;           // sends title + artist to lrclib.net, so opt-in
+        public bool LyricsInNotch { get; set; } = true;
         public List<string> IslandPages { get; set; } = new List<string> { "Home", "Shelf", "Timers" };
         public string AppPage { get; set; } = "Home";
         public double? AppLeft { get; set; }

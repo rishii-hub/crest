@@ -131,13 +131,13 @@ namespace Crest
             "Timers" => new Size(460, 176),
             "Clipboard" => new Size(460, 232),
             "Search" => new Size(560, 296),
-            _ => new Size(500, 184),
+            _ => new Size(Math.Max(300, WidgetCatalog.BoardWidth() + 24), 184),
         };
         Size ExpandedBody => new Size(Math.Round(PageBase(_tab).Width * KE), Math.Round(PageBase(_tab).Height * KE));
         double ExpandedRadius => (Island ? 26 : 22) * KE;
         Size CollapsedWindow => new Size(Math.Round(400 * K) + 2 * Shoulder + 40 + 2 * (RowH + 18), Math.Round(56 * K) + Math.Max(TopGap, 5) + 14);
         // generous margins so the soft shadow is never cut off by the window edge
-        Size ExpandedWindow => new Size(Math.Round(560 * KE) + 2 * Shoulder + 110, Math.Round(296 * KE) + TopGap + 70);
+        Size ExpandedWindow => new Size(Math.Round((WidgetCatalog.Width(WidgetCatalog.MaxUnits) + 24) * KE) + 2 * Shoulder + 110, Math.Round(296 * KE) + TopGap + 70);
 
         public bool IsExpanded => _expanded;
         public bool UserHidden => _userHidden;
@@ -203,6 +203,7 @@ namespace Crest
 
             Shape.Fill = _fill;
             Shape.ClipTarget = BackdropLayer;
+            Shape.ClipTarget2 = ExpandedClip;
             _themeSig = ThemeService.Signature;
             BackdropLayer.Configure();
             BuildTabs();
@@ -262,6 +263,12 @@ namespace Crest
             Safe("recorder", () => RecorderService.Init(Dispatcher));
             Safe("automations", () => AutomationService.Init(Dispatcher));
             Safe("pipe", () => PipeService.Init(Dispatcher));
+            Safe("lyrics", () =>
+            {
+                LyricsService.Init();
+                LyricsService.LineChanged += () => { if (_mode == Mode.Media && !_expanded) RefreshLyric(true); };
+                LyricsService.Changed += () => { if (!_expanded) UpdateCollapsed(true); };
+            });
             Safe("lan drop", () => LanDropService.Init(Dispatcher));
             Safe("notifications", () => NotificationMirror.Init(Dispatcher));
             Safe("focus assist", () => FocusAssistService.Init(Dispatcher));
@@ -690,7 +697,7 @@ namespace Crest
         /// <summary>Compact views for the island.</summary>
         static FrameworkElement CreateView(string key) => key switch
         {
-            "Home" => new IslandHome(),
+            "Home" => new WidgetBoard(),
             "Shelf" => new TrayView(true, compact: true),
             "Launch" => new TrayView(false, compact: true),
             "Timers" => new IslandTimers(),
@@ -954,7 +961,7 @@ namespace Crest
             Size body = m switch
             {
                 Mode.Idle => (LineIdle || HiddenIdle) && privacy ? NotchIdle : IdleBody,
-                Mode.Media => ActivityBody,
+                Mode.Media => ShowLyric ? new Size(Math.Round(430 * K), RowH) : ActivityBody,
                 Mode.Activity => new Size(_primary!.Actions.Count > 0 ? Math.Round(390 * K) : ActivityBody.Width, _primary.Progress != null ? HudBody.Height : RowH),
                 Mode.Hud => HudBody,
                 _ => _toast?.Kind == "msg" ? new Size(Math.Round(420 * K), RowH) : ToastBody
@@ -979,10 +986,30 @@ namespace Crest
                 }
             }
 
+            RefreshLyric(false);
             if (m == Mode.Media) { if (!_eqTimer.IsEnabled) _eqTimer.Start(); }
             else _eqTimer.Stop();
             UpdatePrivacy();
             RenderBubble();
+        }
+
+        bool ShowLyric => _mode == Mode.Media && S.Lyrics && S.LyricsInNotch && LyricsService.HasSynced && MediaService.Instance.IsPlaying;
+
+        /// <summary>The current lyric line in the closed notch, sliding up as it changes.</summary>
+        void RefreshLyric(bool animate)
+        {
+            bool show = ShowLyric;
+            LyricLine.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            if (!show) return;
+            LyricLine.FontSize = Math.Round(12 * K, 1);
+            LyricLine.MaxWidth = Math.Round(430 * K) - Math.Round(100 * K);
+            var text = LyricsService.Index < 0 ? "♪" : LyricsService.Current;
+            if (LyricLine.Text == text) return;
+            LyricLine.Text = text;
+            if (!animate) return;
+            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+            LyricShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(8 * K, 0, TimeSpan.FromMilliseconds(300)) { EasingFunction = ease });
+            LyricLine.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 0.95, TimeSpan.FromMilliseconds(300)));
         }
 
         void RefreshActivityContent()

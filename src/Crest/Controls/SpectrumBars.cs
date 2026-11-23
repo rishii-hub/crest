@@ -13,6 +13,8 @@ namespace Crest.Controls
         readonly float[] _shown = new float[AudioViz.Bands];
         bool _acquired, _running;
         public Brush Brush { get; set; } = Brushes.White;
+        /// <summary>Draw this many bars (bands are averaged together); 0 = one per band.</summary>
+        public int Bars { get; set; }
 
         public SpectrumBars()
         {
@@ -51,15 +53,20 @@ namespace Crest.Controls
         {
             double w = ActualWidth, h = ActualHeight;
             if (w <= 0 || h <= 0) return;
-            int n = _shown.Length;
             if (!_acquired && Array.TrueForAll(_shown, v => v < 0.01f)) return; // idle: draw nothing
-            double gap = 3, bw = Math.Max(1, (w - gap * (n - 1)) / n);
+            int bands = _shown.Length;
+            int n = Bars > 0 ? Math.Min(Bars, bands) : bands;
+            // bars and gaps always fit inside the control, whatever its width
+            double slot = w / n, gap = Math.Min(3, slot * 0.35), bw = Math.Max(1, slot - gap);
             for (int i = 0; i < n; i++)
             {
-                double v = Math.Clamp(_shown[i], 0, 1);
+                int from = i * bands / n, to = Math.Max(from + 1, (i + 1) * bands / n);
+                double v = 0;
+                for (int k = from; k < to; k++) v = Math.Max(v, _shown[k]);
+                v = Math.Clamp(v, 0, 1);
                 double bh = Math.Max(2, v * h);
                 dc.PushOpacity(0.35 + 0.65 * v);
-                dc.DrawRoundedRectangle(Brush, null, new Rect(i * (bw + gap), (h - bh) / 2, bw, bh), bw / 2, bw / 2);
+                dc.DrawRoundedRectangle(Brush, null, new Rect(i * slot + gap / 2, (h - bh) / 2, bw, bh), bw / 2, bw / 2);
                 dc.Pop();
             }
         }

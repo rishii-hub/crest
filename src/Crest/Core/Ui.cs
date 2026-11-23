@@ -62,6 +62,10 @@ namespace Crest.Core
             return t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{t.Minutes:00}:{t.Seconds:00}";
         }
 
+        /// <summary>"14:05" or "2:05" following the user's 12/24-hour setting, without AM/PM.</summary>
+        public static string ShortTime(DateTime t) =>
+            t.ToString(System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains("H") ? "HH:mm" : "h:mm", System.Globalization.CultureInfo.CurrentCulture);
+
         public static string ClockCeil(TimeSpan t)
         {
             if (t < TimeSpan.Zero) t = TimeSpan.Zero;

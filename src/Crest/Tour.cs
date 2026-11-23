@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -63,6 +64,40 @@ namespace Crest
                     await Task.Delay(1300);
                     Capture("island-" + key.ToLowerInvariant());
                 }
+                // Now-page widget combinations
+                SelectTab("Home");
+                foreach (var set in new[]
+                {
+                    new[] { "Clock", "Weather", "Battery", "System" },
+                    new[] { "Calendar", "Timer", "Toggles", "Note" },
+                    new[] { "Countdown", "ScreenTime", "Glance" },
+                    new[] { "Music", "Lyrics" },
+                })
+                {
+                    SettingsStore.Update(x => { x.NowWidgets = set.ToList(); x.CountdownLabel = "Exams"; x.CountdownDate = DateTime.Today.AddDays(23).ToString("yyyy-MM-dd"); x.Lyrics = set.Contains("Lyrics"); });
+                    if (set.Contains("Lyrics"))
+                        LyricsService.Demo(new List<LyricsService.Line>
+                        {
+                            new(TimeSpan.Zero, "Neon on the window, rain on the glass"),
+                            new(TimeSpan.FromSeconds(4), "Every little island lights up as we pass"),
+                            new(TimeSpan.FromSeconds(8), "Hold the moment, let the city hum"),
+                        }, 1);
+                    await Task.Delay(1500);
+                    Capture("widgets-" + string.Join("-", set).ToLowerInvariant());
+                }
+                SettingsStore.Update(x => { x.NowWidgets = new List<string> { "Music", "Glance" }; x.Lyrics = false; });
+
+                // Lyrics lookup against lrclib.net (logs only the count, never the words)
+                try
+                {
+                    SettingsStore.Current.Lyrics = true;
+                    int n = await LyricsService.Probe("Shape of You", "Ed Sheeran", TimeSpan.FromSeconds(234));
+                    int yt = await LyricsService.Probe("Ed Sheeran - Shape of You (Official Music Video)", "Ed Sheeran", TimeSpan.FromSeconds(263));
+                    Log.Write($"tour: lyrics probe synced lines {n}, youtube-style title {yt}");
+                    SettingsStore.Current.Lyrics = false;
+                }
+                catch (Exception ex) { Log.Write("tour: lyrics probe failed " + ex.Message); }
+
                 PinButton.IsChecked = false;
                 Collapse();
                 await Task.Delay(700);
