@@ -79,14 +79,14 @@ namespace Crest
                 await Caption("Live activities", "Music from any app, with lyrics right in the notch");
                 LyricsService.DemoSong(DemoLyrics());
                 MediaService.Instance.Demo("Midnight Drive", "The Crest Demo Band", Art(), Color.FromRgb(0xFF, 0x5E, 0x7E), TimeSpan.FromSeconds(204));
-                await Task.Delay(7000);
+                await Task.Delay(6000);
 
                 // 3 · hover to open: widgets
                 await Caption("Hover to open", "Your widgets, your pages, any size");
                 await Glide(NotchPoint(0, 10), 900);
-                await Task.Delay(4200);
+                await Task.Delay(3800);
                 await ClickTab("today");
-                await Task.Delay(3600);
+                await Task.Delay(3200);
                 TimerService.Instance.CdSet(25);
                 await ClickTab("Timers");
                 await Task.Delay(900);
@@ -157,20 +157,24 @@ namespace Crest
                 await Task.Delay(800);
 
                 // 9 · eyes
+                SettingsStore.Update(x => { var h = WidgetCatalog.Page("Home")!; h.Widgets[0].H = 1; h.Widgets[1].H = 1; });
+                PinButton.IsChecked = false;
+                Collapse();
                 MediaService.Instance.DemoEnd();
                 TimerService.Instance.CdReset();
+                await Task.Delay(600);
                 await Caption("And yes, it has eyes", "They follow you, blink, and nap when you're away");
                 foreach (var style in new[] { "Bubble", "Honey", "Jade" })
                 {
                     SettingsStore.Update(x => x.Eyes = style);
-                    await Glide(Px(screen.X * 0.25, screen.Y * 0.28), 900);
-                    await Glide(Px(screen.X * 0.75, screen.Y * 0.4), 1100);
+                    await Glide(Px(screen.X * 0.22, screen.Y * 0.5), 900);
+                    await Glide(Px(screen.X * 0.78, screen.Y * 0.42), 1100);
                 }
                 await Glide(Px(screen.X * 0.5, screen.Y * 0.9), 900);
                 Eyes.ForceSleep(true);
 
                 await Caption("Crest · free and open source", "github.com/rishii-hub/crest");
-                await Task.Delay(4500);
+                await Task.Delay(5000);
                 Log.Write("demo: done");
             }
             catch (Exception ex) { Log.Error("demo", ex); }

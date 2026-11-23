@@ -57,10 +57,10 @@ jobs:
           $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds; Write-Host "screen: $($b.Width)x$($b.Height)"
           if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { choco install ffmpeg -y --no-progress | Out-Null; $env:Path = "C:\ProgramData\chocolatey\bin;$env:Path" }
           Remove-Item "$env:APPDATA\Crest" -Recurse -Force -ErrorAction SilentlyContinue
-          $ff = Start-Process ffmpeg -ArgumentList '-y','-f','gdigrab','-framerate','30','-draw_mouse','1','-t','120','-i','desktop','-c:v','libx264','-preset','veryfast','-crf','21','-pix_fmt','yuv420p','demo-raw.mp4' -PassThru -NoNewWindow -RedirectStandardError ff.log
+          $ff = Start-Process ffmpeg -ArgumentList '-y','-f','gdigrab','-framerate','30','-draw_mouse','1','-t','150','-i','desktop','-c:v','libx264','-preset','veryfast','-crf','21','-pix_fmt','yuv420p','demo-raw.mp4' -PassThru -NoNewWindow -RedirectStandardError ff.log
           Start-Sleep 2
           $p = Start-Process "out/standalone/Crest.exe" -ArgumentList "--demo" -PassThru
-          if (-not $p.WaitForExit(170000)) { Stop-Process $p -Force; Write-Host "::warning::demo timed out" }
+          if (-not $p.WaitForExit(200000)) { Stop-Process $p -Force; Write-Host "::warning::demo timed out" }
           if (-not $ff.WaitForExit(60000)) { Stop-Process $ff -Force }
           Get-Content ff.log -Tail 5
           Get-Content "$env:APPDATA\Crest\crest.log" -ErrorAction SilentlyContinue | Select-String "demo|error|Exception"
