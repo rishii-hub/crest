@@ -45,7 +45,7 @@ namespace Crest.Views
         };
 
         public static readonly (int W, int H)[] Sizes = { (1, 1), (2, 1), (3, 1), (4, 1), (1, 2), (2, 2), (3, 2), (4, 2) };
-        public static readonly string[] PageGlyphs = { Glyphs.Home, "\uE80F", Glyphs.Music, Glyphs.Chart, Glyphs.Calendar, Glyphs.Cloud, "\uE734", "\uEB51", "\uE7FC", "\uE821", "\uE943", "\uE7BE" };
+        public static readonly string[] PageGlyphs = { Glyphs.Home, "\uE8F1", Glyphs.Music, Glyphs.Chart, Glyphs.Calendar, Glyphs.Cloud, "\uE734", "\uEB51", "\uE7FC", "\uE821", "\uE943", "\uE7BE" };
 
         public static WidgetDef? Get(string key) => All.FirstOrDefault(w => w.Key == key);
         public static IslandPageDef? Page(string? id) => id == null ? null : S.WidgetPages.FirstOrDefault(p => p.Id == id);
@@ -67,7 +67,8 @@ namespace Crest.Views
             int n = 2;
             string unique = name;
             while (S.WidgetPages.Any(p => p.Name == unique)) unique = $"{name} {n++}";
-            var page = new IslandPageDef { Name = unique, Glyph = PageGlyphs[S.WidgetPages.Count % PageGlyphs.Length] };
+            var glyph = PageGlyphs.Skip(1).FirstOrDefault(g => !S.WidgetPages.Any(p => p.Glyph == g)) ?? PageGlyphs[1];
+            var page = new IslandPageDef { Name = unique, Glyph = glyph };
             S.WidgetPages.Add(page);
             S.IslandPages.Add(page.Id);
             return page;
@@ -806,10 +807,13 @@ namespace Crest.Views
         long _idle, _kernel, _user;
         public override void Resize(int w, int h)
         {
-            double size = h >= 2 ? 96 : w >= 2 ? 64 : 50;
+            bool column = w == 1 && h >= 2;   // tall and narrow: stack the gauges
+            double size = column ? 66 : h >= 2 ? 96 : w >= 2 ? 64 : 50;
             foreach (var r in new[] { _cpu, _ram }) { r.Width = r.Height = size; ((FrameworkElement)r.Parent).Width = ((FrameworkElement)r.Parent).Height = size; r.Thickness = size / 12; }
             _cpuT.FontSize = _ramT.FontSize = size / 4.4;
-            foreach (var r in new[] { _cpu, _ram }) ((FrameworkElement)((FrameworkElement)r.Parent).Parent).Margin = new Thickness(w >= 2 ? 14 : 4, 0, w >= 2 ? 14 : 4, 0);
+            var row = (StackPanel)((FrameworkElement)((FrameworkElement)_cpu.Parent).Parent).Parent;
+            row.Orientation = column ? Orientation.Vertical : Orientation.Horizontal;
+            foreach (var r in new[] { _cpu, _ram }) ((FrameworkElement)((FrameworkElement)r.Parent).Parent).Margin = column ? new Thickness(0, 4, 0, 4) : new Thickness(w >= 2 ? 14 : 4, 0, w >= 2 ? 14 : 4, 0);
         }
         public SystemWidget() : base(1500)
         {

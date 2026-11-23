@@ -39,7 +39,7 @@ jobs:
         run: |
           Remove-Item "$env:APPDATA\Crest" -Recurse -Force -ErrorAction SilentlyContinue
           $p = Start-Process -FilePath "out/standalone/Crest.exe" -ArgumentList "--tour", "$PWD/shots" -PassThru
-          if (-not $p.WaitForExit(150000)) { Stop-Process $p -Force; Write-Host "::warning::tour timed out" }
+          if (-not $p.WaitForExit(300000)) { Stop-Process $p -Force; Write-Host "::warning::tour timed out" }
           Write-Host "exit code: $($p.ExitCode)"
           $log = "$env:APPDATA\Crest\crest.log"
           if (Test-Path $log) { Copy-Item $log shots/crest.log; Get-Content $log }

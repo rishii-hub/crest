@@ -47,7 +47,7 @@ namespace Crest
                     await Task.Delay(250);
                 }
 
-                s.IslandPages = IslandTabs.Select(t => t.Key).ToList();
+                s.IslandPages = new[] { "Home" }.Concat(IslandTabs.Select(t => t.Key)).ToList();
                 s.Alarms.Add(new AlarmItem { Hour = 7, Minute = 30, Label = "Gym", Days = 0x3E });
                 s.Alarms.Add(new AlarmItem { Hour = 9, Minute = 0, Label = "Standup", Days = 0x3E, Enabled = false });
                 s.Automations.Add(new AutomationItem { Name = "Backup notes", Path = @"C:\Scripts\backup.ps1" });

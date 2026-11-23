@@ -50,7 +50,7 @@ Small and quiet, like the Mac notch apps: a row of tiny page icons with a slidin
 
 | Island page | |
 |---|---|
-| **Now** | Your own widgets, side by side (see below). By default: music, plus the time, weather, battery and what's next. |
+| **Now** (and any pages you add) | Your own widgets, any size (see below). By default: music, plus the time, weather, battery and what's next. |
 | **Shelf** | Drop files on the island, drag them out later. |
 | **Timers** | One-tap 1–45 minute timers, or Pomodoro. |
 | **Clipboard** | Your latest copies; click one to copy it again (`Ctrl+Alt+V`). |
@@ -58,12 +58,16 @@ Small and quiet, like the Mac notch apps: a row of tiny page icons with a slidin
 
 Pick which pages the island shows in *Crest → Island*.
 
-**Widgets.** Build the Now page from up to four spaces of widgets, in any order: Music, **Lyrics**, At a glance, Clock, Weather, Battery, Timer, System, Calendar, Quick toggles, Countdown (days until a date you pick), Note and Screen time. The island resizes to fit what you choose. *Crest → Island → Now page widgets.*
+**Widgets, your way.** Make as many island pages as you like and put any widget on any of them. Each page is a 4 × 2 grid and every widget can be any size from 1 × 1 to 4 × 2: a tiny music button or a big album-art player, a clock the size of the page, the weather with the next hours when it's wide and the week when it's tall. The island fits itself around each page. Manage it in *Crest → Island → Island pages & widgets*, or right-click a widget on the island to resize it, move it to another page or remove it.
+
+Widgets: Music, **Lyrics**, At a glance, Clock, Weather, Battery, Timer, System, Calendar, Quick toggles, Countdown (days until a date you pick), Note and Screen time.
+
+<p><img src="docs/screenshots/widgets-two-rows.png" width="49%"/> <img src="docs/screenshots/widgets-big-clock.png" width="49%"/></p>
+<p><img src="docs/screenshots/widgets-wide-weather-calendar.png" width="49%"/> <img src="docs/screenshots/widgets-music-small-clock-wide.png" width="49%"/></p>
 
 **Lyrics.** Synced lyrics for whatever is playing (Spotify, YouTube or YouTube Music in any browser, Apple Music, anything that shows up in Windows' media controls). They appear in the Lyrics widget and, optionally, as a single line in the closed notch while the song plays. Off by default: turning it on sends the song's title and artist to [LRCLIB](https://lrclib.net), a free, open lyrics database. Results are cached on your PC.
 
-<p><img src="docs/screenshots/widgets-music-lyrics.png" width="49%"/> <img src="docs/screenshots/widgets-calendar-timer-toggles-note.png" width="49%"/></p>
-<p><img src="docs/screenshots/widgets-clock-weather-battery-system.png" width="49%"/> <img src="docs/screenshots/widgets-countdown-screentime-glance.png" width="49%"/></p> `Ctrl+Alt+Space` opens search in the island.
+<p><img src="docs/screenshots/widgets-music-lyrics.png" width="49%"/> <img src="docs/screenshots/widgets-calendar-timer-toggles-note.png" width="49%"/></p> `Ctrl+Alt+Space` opens search in the island.
 
 ### The Crest app (tray icon, or the ⊞ button on the island)
 A normal window with a sidebar, like the Mac notch apps' settings windows, holding every feature at full size and all settings. Any page can be popped out as a floating widget.
